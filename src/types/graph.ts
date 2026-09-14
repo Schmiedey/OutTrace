@@ -31,7 +31,7 @@ export const DOMAIN_CATEGORIES = [
 
 export type DomainCategory = (typeof DOMAIN_CATEGORIES)[number];
 
-export type ClassificationSource = "disconnect-list" | "curated-list" | "heuristic" | "unknown" | "first-party";
+export type ClassificationSource = "curated-list" | "heuristic" | "unknown" | "first-party";
 export type ClassificationConfidence = "high" | "medium" | "low";
 
 export type RawFinding = {

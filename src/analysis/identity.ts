@@ -153,15 +153,13 @@ export function classificationLabel(
   confidence: ClassificationConfidence,
 ): string {
   const sourceLabel =
-    source === "disconnect-list"
-      ? "Disconnect list"
-      : source === "curated-list"
-        ? "LinkScope list"
-        : source === "heuristic"
-          ? "Domain-name heuristic"
-          : source === "first-party"
-            ? "First-party match"
-            : "No matching source";
+    source === "curated-list"
+      ? "LinkScope list"
+      : source === "heuristic"
+        ? "Domain-name heuristic"
+        : source === "first-party"
+          ? "First-party match"
+          : "No matching source";
   return `${confidence[0]?.toUpperCase() ?? ""}${confidence.slice(1)} confidence · ${sourceLabel}`;
 }
 

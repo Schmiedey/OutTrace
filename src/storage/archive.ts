@@ -1,4 +1,4 @@
-import { LIST_ATTRIBUTION } from "@/src/analysis/list";
+import { LIST_ATTRIBUTION } from "@/src/analysis/categorizer";
 import { scoreSnapshot } from "@/src/analysis/score";
 import { db } from "@/src/storage/database";
 import type {

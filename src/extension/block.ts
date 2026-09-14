@@ -38,12 +38,12 @@ export async function blockDomain(domain: string): Promise<"blocked" | "copied">
   const normalized = domain.toLowerCase();
   try {
     const granted = await browser.permissions.request({ origins: originsFor(normalized) });
-    if (!granted || !browser.declarativeNetRequest?.updateSessionRules) {
+    if (!granted || !browser.declarativeNetRequest?.updateDynamicRules) {
       await copyBlockRule(normalized);
       return "copied";
     }
     const id = ruleIdFor(normalized);
-    await browser.declarativeNetRequest.updateSessionRules({
+    await browser.declarativeNetRequest.updateDynamicRules({
       removeRuleIds: [id],
       addRules: [
         {

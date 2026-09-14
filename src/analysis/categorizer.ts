@@ -1,4 +1,3 @@
-import { lookupDisconnect } from "@/src/analysis/list";
 import type {
   ClassificationConfidence,
   ClassificationSource,
@@ -215,6 +214,14 @@ const SEED: Record<string, DomainCategory> = {
 
 const SORTED_SUFFIXES = Object.keys(SEED).sort((a, b) => b.length - a.length);
 
+export const LIST_ATTRIBUTION = {
+  source: "LinkScope curated classifications",
+  license: "Original LinkScope project data",
+  homepage: "https://github.com/Schmiedey/linkscope",
+  generatedAt: "2026-09-14",
+  domainCount: SORTED_SUFFIXES.length,
+} as const;
+
 export type DomainDescription = {
   category: DomainCategory;
   owner?: string;
@@ -234,24 +241,13 @@ function categorizeFromSeed(domain: string): DomainCategory | null {
 }
 
 export function describeDomain(domain: string): DomainDescription {
-  const listed = lookupDisconnect(domain);
   const seed = categorizeFromSeed(domain);
   const pattern = categorizeByPattern(domain.toLowerCase());
   if (seed) {
     return {
       category: seed,
-      owner: listed?.owner,
-      listed: Boolean(listed),
-      source: "curated-list",
-      confidence: "high",
-    };
-  }
-  if (listed) {
-    return {
-      category: listed.category,
-      owner: listed.owner,
       listed: true,
-      source: "disconnect-list",
+      source: "curated-list",
       confidence: "high",
     };
   }

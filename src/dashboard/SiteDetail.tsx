@@ -79,7 +79,7 @@ export function SiteDetailPage() {
         <section className="mt-12 max-w-2xl">
           <h2 className="font-display text-2xl">Who receives data</h2>
           <p className="mt-1 mb-4 text-[13px] text-mute">
-            Third-party domains grouped by Disconnect owner from the latest scan.
+            Third-party domains grouped by identified owner from the latest scan.
           </p>
           <OwnerGroups groups={owners} />
         </section>

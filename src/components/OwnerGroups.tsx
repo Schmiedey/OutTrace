@@ -48,7 +48,7 @@ export function OwnerGroups({
           <div>
             <div className="text-[14px] text-ink">Unlisted companies</div>
             <div className="mt-0.5 text-[12px] text-mute">
-              {formatCount(unlisted.domains.length)} domains with no Disconnect owner
+              {formatCount(unlisted.domains.length)} domains with no identified owner
             </div>
           </div>
           {unlisted.trackerCount > 0 ? <Badge tone="rose">{formatCount(unlisted.trackerCount)}</Badge> : null}

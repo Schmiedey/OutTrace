@@ -2,18 +2,15 @@ import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { billingStatus } from "@/src/billing/client";
 import { Button } from "@/src/components/ui/button";
-import { LIST_ATTRIBUTION } from "@/src/analysis/list";
+import { LIST_ATTRIBUTION } from "@/src/analysis/categorizer";
 import { downloadJson } from "@/src/export/scanExport";
 import { importArchive, parseArchive } from "@/src/storage/archive";
 import { clearAllData, exportAllData } from "@/src/storage/scans";
 import { notificationsEnabled, setNotificationsEnabled } from "@/src/storage/settings";
-import { seedLiveTen } from "@/src/storage/seed";
 import { useAsync } from "@/src/lib/useAsync";
 
 export function SettingsPage() {
   const [cleared, setCleared] = useState(false);
-  const [liveSeeded, setLiveSeeded] = useState(false);
-  const [liveBusy, setLiveBusy] = useState(false);
   const [exported, setExported] = useState(false);
   const [imported, setImported] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
@@ -21,28 +18,13 @@ export function SettingsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const notify = useAsync(() => notificationsEnabled(), []);
   const billing = useAsync(() => billingStatus(), []);
-  const isLocalhost = location.hostname === "localhost";
 
   const clear = async (): Promise<void> => {
     const confirmed = window.confirm("Delete every saved scan, domain, and graph from this browser?");
     if (!confirmed) return;
     await clearAllData();
-    sessionStorage.removeItem("linkscope-live-ten");
     setCleared(true);
-    setLiveSeeded(false);
     setImported(null);
-  };
-
-  const seedLive = async (): Promise<void> => {
-    setLiveBusy(true);
-    try {
-      await seedLiveTen();
-      sessionStorage.setItem("linkscope-live-ten", "1");
-      setLiveSeeded(true);
-      setCleared(false);
-    } finally {
-      setLiveBusy(false);
-    }
   };
 
   const exportAll = async (): Promise<void> => {
@@ -110,10 +92,10 @@ export function SettingsPage() {
         </Button>
       </section>
       <section className="mb-8">
-        <h2 className="text-[15px] font-medium">Tracker list</h2>
+        <h2 className="text-[15px] font-medium">Classification sources</h2>
         <p className="mt-2 text-[14px] leading-relaxed text-mute">
-          {LIST_ATTRIBUTION.domainCount.toLocaleString("en-US")} domains from {LIST_ATTRIBUTION.source} ({LIST_ATTRIBUTION.generatedAt}),
-          licensed {LIST_ATTRIBUTION.license}. Unknown still means unknown — not clean.
+          {LIST_ATTRIBUTION.domainCount.toLocaleString("en-US")} domains from {LIST_ATTRIBUTION.source} ({LIST_ATTRIBUTION.generatedAt}).
+          Unknown still means unknown — not clean. Pattern matches are labeled separately as medium confidence.
         </p>
         <a
           className="mt-2 inline-block text-[13px] text-ink underline"
@@ -148,15 +130,6 @@ export function SettingsPage() {
         {importError ? <p className="mt-3 text-[13px] text-rose">{importError}</p> : null}
         {!billing.data?.paid ? <p className="mt-3 text-[12px] text-mute"><Link to="/pro" className="underline">View Pro</Link> for one-year history and export.</p> : null}
       </section>
-      {isLocalhost ? (
-        <section className="mb-8">
-          <h2 className="text-[15px] font-medium">Development fixtures</h2>
-          <p className="mt-2 mb-4 text-[14px] text-mute">Load captured page data while developing locally.</p>
-          <Button className="ml-2" variant="ghost" disabled={liveBusy} onClick={() => void seedLive()}>
-            {liveSeeded ? "10 live scans saved" : liveBusy ? "Saving…" : "Load 10 live scans"}
-          </Button>
-        </section>
-      ) : null}
       <section>
         <h2 className="text-[15px] font-medium">Danger zone</h2>
         <p className="mt-2 mb-4 text-[14px] text-mute">This cannot be undone.</p>

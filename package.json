@@ -12,11 +12,12 @@
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
     "check:secrets": "node scripts/check-secrets.mjs",
+    "check:classification-license": "node scripts/check-classification-license.mjs",
     "check:entitlements": "node scripts/check-entitlements.mjs",
     "test": "vitest run",
     "compile": "tsc --noEmit",
-    "prebuild": "npm run check:secrets && npm run check:entitlements",
-    "prezip": "npm run check:secrets && npm run check:entitlements",
+    "prebuild": "npm run check:secrets && npm run check:classification-license && npm run test",
+    "prezip": "npm run check:secrets && npm run check:classification-license && npm run test",
     "postinstall": "wxt prepare"
   },
   "dependencies": {

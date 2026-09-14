@@ -16,6 +16,7 @@ import {
   setAuditDiscovery,
 } from "@/src/storage/audits";
 import { getBillingStatus } from "@/src/billing/extpay";
+import { requirePro } from "@/src/billing/entitlements";
 
 type AuditRunnerOptions = {
   onProgress?: (progress: AuditProgress) => void;
@@ -55,9 +56,7 @@ async function emitProgress(auditId: number, recent: string[], callback?: AuditR
 export async function runAudit(auditId: number, options: AuditRunnerOptions = {}): Promise<void> {
   const audit = await getAudit(auditId);
   if (!audit) throw new Error("Audit not found.");
-  if (audit.mode === "deep" && !(await getBillingStatus()).paid) {
-    throw new Error("Deep audits require LinkScope Pro.");
-  }
+  if (audit.mode === "deep") requirePro(await getBillingStatus(), "deep-audit");
   const discovered = new Set<string>([audit.rootUrl]);
   const existingPages = await listAuditPages(auditId);
   const attempted = new Set(existingPages.filter((page) => page.status === "completed").map((page) => page.url));

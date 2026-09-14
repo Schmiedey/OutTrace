@@ -34,6 +34,8 @@ Unpacked development builds automatically use ExtensionPay's development flow an
 
 Connect the Stripe account from the ExtensionPay dashboard. LinkScope does not read Stripe publishable or secret API keys directly. Production builds and ZIPs run a secret scan and fail if a Stripe secret is found in the project.
 
+LinkScope's commercial build does not bundle Disconnect's non-commercial Tracker Protection dataset. Tracker categories use the original LinkScope curated classifications plus clearly labeled domain-name heuristics. The release guard fails a build if the removed dataset, generator, attribution, or classification source is reintroduced.
+
 Free includes one watched site and keeps up to 20 local scans for 30 days. Pro unlocks unlimited watched sites, export, and extended local history capped at 1,000 scans or one year. Ordinary scans inspect every accessible frame; Pro deep scans add a 15-second request window and all-site access for cross-origin frames.
 
 The toolbar badge shows the third-party count, or `+N` new domains since last visit to this site.
@@ -46,7 +48,7 @@ The toolbar badge shows the third-party count, or `+N` new domains since last vi
 - `storage` — retain ExtensionPay's local license token and cached subscription status
 - `webRequest` — while a scan/watch is running, record initiator/document URLs for that tab
 - `notifications` — optional local alerts for watched-site changes or tracked domains
-- `declarativeNetRequest` — only if you click **Block this domain**
+- `declarativeNetRequest` — only if you click **Block this domain**; the resulting dynamic rule persists across browser restarts
 - Optional host access — requested per site for Free watched sites and standard audits. Pro asks for all-site access only when deep iframe scanning is enabled, because embedded frames can use unrelated origins. Blocking also requests access when used.
 
 No required host permissions. Pages are not injected at `document_start`.
@@ -58,5 +60,6 @@ Permission audit: every declared permission above has a matching runtime feature
 ```bash
 npm run dev
 npm run compile
+npm test
 npm run build
 ```

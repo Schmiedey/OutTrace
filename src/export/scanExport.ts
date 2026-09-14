@@ -1,4 +1,4 @@
-import { LIST_ATTRIBUTION } from "@/src/analysis/list";
+import { LIST_ATTRIBUTION } from "@/src/analysis/categorizer";
 import type { ConnectionType, ScanGraphSnapshot, ScanRow } from "@/src/types/graph";
 import type { Core } from "cytoscape";
 

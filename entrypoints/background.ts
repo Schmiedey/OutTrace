@@ -9,6 +9,7 @@ import { maybeNotifyWeeklyDigest } from "@/src/storage/alerts";
 import { registrableDomain } from "@/src/lib/domain";
 import { toggleFollowDomain } from "@/src/storage/follows";
 import { getBillingStatus, openProCheckout, openProLogin, startBillingBackground } from "@/src/billing/extpay";
+import { requirePro, runProAction } from "@/src/billing/entitlements";
 import { installWatchedSiteSchedule, runDueWatchedSites, runWatchedSite, WATCHED_SITE_ALARM } from "@/src/extension/watchedSites";
 import {
   addWatchedSite,
@@ -232,13 +233,8 @@ export default defineBackground(() => {
 
     if (message?.type === "WATCH_ACTIVE_TAB") {
       void getBillingStatus()
-        .then((status) => {
-          if (!status.paid) throw new Error("The 15-second deep scan is a Pro feature.");
-          void watchActiveTab(undefined, true).catch((error: unknown) => {
-            console.error(error instanceof Error ? error.message : "Watch failed");
-          });
-          sendResponse({ ok: true });
-        })
+        .then((status) => runProAction(status, "deep-scan", () => watchActiveTab(undefined, true)))
+        .then(() => sendResponse({ ok: true }))
         .catch((error: unknown) =>
           sendResponse({ ok: false, error: error instanceof Error ? error.message : "Watch failed" }),
         );
@@ -280,7 +276,7 @@ export default defineBackground(() => {
         .then(async ([sites, billing]) => {
           const target = normalizeWatchedSiteUrl(url);
           if (!billing.paid && sites.length >= 1 && !sites.some((site) => site.domain === target.domain)) {
-            throw new Error("Free includes one watched site. Upgrade to Pro for unlimited sites.");
+            requirePro(billing, "unlimited-watched-sites");
           }
           const site = await addWatchedSite(url, schedule);
           const scanId = await runWatchedSite(site);
@@ -312,7 +308,7 @@ export default defineBackground(() => {
       const schedule: WatchedSiteSchedule = message.schedule === "weekly" ? "weekly" : "daily";
       void getBillingStatus()
         .then((billing) => {
-          if (!billing.paid) throw new Error("Scheduled background checks require LinkScope Pro.");
+          requirePro(billing, "scheduled-checks");
           return updateWatchedSiteSchedule(domain, schedule);
         })
         .then(() => sendResponse({ ok: true }))
