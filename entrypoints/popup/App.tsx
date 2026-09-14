@@ -14,6 +14,8 @@ import { getDomain } from "@/src/storage/domains";
 import { isFollowedDomain, toggleFollowDomain } from "@/src/storage/follows";
 import { getSiteGlance, type SiteGlance } from "@/src/storage/glance";
 import type { DomainRow } from "@/src/types/graph";
+import { billingStatus } from "@/src/billing/client";
+import { useAsync } from "@/src/lib/useAsync";
 
 export function PopupApp() {
   const [host, setHost] = useState("—");
@@ -25,6 +27,7 @@ export function PopupApp() {
   const [selectedRow, setSelectedRow] = useState<DomainRow | undefined>(undefined);
   const [followed, setFollowed] = useState(false);
   const scanProgress = useScanProgress();
+  const billing = useAsync(() => billingStatus(), []);
   const now = Date.now();
 
   const load = async (domain: string): Promise<SiteGlance | null> => {
@@ -100,6 +103,16 @@ export function PopupApp() {
   };
 
   const runWatch = async (): Promise<void> => {
+    if (!billing.data?.paid) {
+      await openDashboard("/pro");
+      window.close();
+      return;
+    }
+    const granted = await browser.permissions.request({ origins: ["*://*/*"] });
+    if (!granted) {
+      setError("Deep iframe scanning needs access to embedded sites.");
+      return;
+    }
     scanProgress.reset();
     setChecking(true);
     setError(null);
@@ -204,7 +217,7 @@ export function PopupApp() {
             Inspect
           </Button>
           <Button variant="ghost" className="w-full" disabled={checking || Boolean(blocked)} onClick={() => void runWatch()}>
-            Watch 15 seconds
+            {billing.data?.paid ? "Deep scan · 15 seconds" : "Deep scan · Pro"}
           </Button>
           <Button
             variant="ghost"

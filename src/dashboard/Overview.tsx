@@ -51,7 +51,9 @@ export function OverviewPage() {
                   <div>
                     <div className="text-[14px] text-ink">{alert.siteDomain}</div>
                     <div className="text-[12px] text-mute">
-                      {alert.addedTrackers.length > 0
+                      {alert.kind === "watched-site-change"
+                        ? `${formatCount((alert.addedDomains ?? []).length)} added · ${formatCount((alert.removedDomains ?? []).length)} removed`
+                        : alert.addedTrackers.length > 0
                         ? `${formatCount(alert.addedTrackers.length)} new tracker${alert.addedTrackers.length === 1 ? "" : "s"}: ${alert.addedTrackers.slice(0, 3).join(", ")}`
                         : `Trackers ${alert.trackerDelta > 0 ? "+" : ""}${String(alert.trackerDelta)}`}
                     </div>

@@ -1,4 +1,4 @@
-import { ClipboardCheck, Globe2, History, LayoutDashboard, Network, Settings, Star, Waypoints } from "lucide-react";
+import { ClipboardCheck, Crown, Globe2, History, LayoutDashboard, Network, Settings, Star, Waypoints } from "lucide-react";
 import { useEffect } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { cn } from "@/src/lib/utils";
@@ -13,6 +13,7 @@ const NAV = [
   { to: "/domains", label: "Domains", icon: Waypoints },
   { to: "/following", label: "Watching", icon: Star },
   { to: "/global", label: "Global graph", icon: Network },
+  { to: "/pro", label: "Pro", icon: Crown },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -55,7 +56,7 @@ export function AppShell() {
           ))}
         </nav>
         <p className="px-5 py-4 text-[12px] leading-relaxed text-mute">
-          Local only. Nothing is uploaded.
+          Scan data stays on this device.
         </p>
       </aside>
       <main className="min-w-0 flex-1">

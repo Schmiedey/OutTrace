@@ -5,7 +5,7 @@ import { formatCount, formatRelativeTime } from "@/src/lib/utils";
 import { useAsync } from "@/src/lib/useAsync";
 import { listRecentScans } from "@/src/storage/scans";
 
-type CaptureFilter = "all" | "snapshot" | "watch";
+type CaptureFilter = "all" | "snapshot" | "watch" | "scheduled";
 type ScanSort = "newest" | "trackers" | "third";
 
 export function ScansPage() {
@@ -59,6 +59,9 @@ export function ScansPage() {
         <FilterChip on={capture === "watch"} onClick={() => setCapture("watch")}>
           Watch
         </FilterChip>
+        <FilterChip on={capture === "scheduled"} onClick={() => setCapture("scheduled")}>
+          Scheduled
+        </FilterChip>
         <span className="mx-1 text-line">·</span>
         <FilterChip on={sort === "newest"} onClick={() => setSort("newest")}>
           Newest
@@ -93,7 +96,7 @@ export function ScansPage() {
                   </td>
                   <td className="py-3">{formatCount(scan.thirdPartyCount)}</td>
                   <td className="py-3">{formatCount(scan.trackerCount)}</td>
-                  <td className="py-3 text-mute">{scan.captureMode === "watch" ? "Watch" : "Snapshot"}</td>
+                  <td className="py-3 text-mute">{scan.captureMode === "watch" ? "Watch" : scan.captureMode === "scheduled" ? "Scheduled" : "Snapshot"}</td>
                   <td className="py-3 text-mute">{formatRelativeTime(scan.timestamp, now)}</td>
                 </tr>
               );

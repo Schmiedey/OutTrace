@@ -15,6 +15,7 @@ import {
   setAuditCurrentPage,
   setAuditDiscovery,
 } from "@/src/storage/audits";
+import { getBillingStatus } from "@/src/billing/extpay";
 
 type AuditRunnerOptions = {
   onProgress?: (progress: AuditProgress) => void;
@@ -54,6 +55,9 @@ async function emitProgress(auditId: number, recent: string[], callback?: AuditR
 export async function runAudit(auditId: number, options: AuditRunnerOptions = {}): Promise<void> {
   const audit = await getAudit(auditId);
   if (!audit) throw new Error("Audit not found.");
+  if (audit.mode === "deep" && !(await getBillingStatus()).paid) {
+    throw new Error("Deep audits require LinkScope Pro.");
+  }
   const discovered = new Set<string>([audit.rootUrl]);
   const existingPages = await listAuditPages(auditId);
   const attempted = new Set(existingPages.filter((page) => page.status === "completed").map((page) => page.url));
@@ -89,7 +93,7 @@ export async function runAudit(auditId: number, options: AuditRunnerOptions = {}
           stopRequestCapture(tabId);
           break;
         }
-        const raw = withCapturedRequests(await injectCollector(tabId), tabId);
+        const raw = withCapturedRequests(await injectCollector(tabId, audit.mode === "deep"), tabId);
         const newlyFound = await persistAuditPage(auditId, raw);
         recent.push(...newlyFound);
         for (const link of discoverPayloadLinks(raw, audit.rootUrl)) discovered.add(link);

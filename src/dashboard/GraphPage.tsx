@@ -50,7 +50,7 @@ export function GraphPage() {
   }
 
   const snapshot = graph.data;
-  const captureNote = scan.data.captureMode === "watch" ? " · 15s watch" : "";
+  const captureNote = scan.data.captureMode === "watch" ? " · 15s watch" : scan.data.captureMode === "scheduled" ? " · scheduled check" : "";
 
   return (
     <GraphViewer

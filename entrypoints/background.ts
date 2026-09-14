@@ -7,6 +7,16 @@ import { blockDomain } from "@/src/extension/block";
 import type { ScanProgressUpdate } from "@/src/extension/scanProgress";
 import { registrableDomain } from "@/src/lib/domain";
 import { toggleFollowDomain } from "@/src/storage/follows";
+import { getBillingStatus, openProCheckout, openProLogin, startBillingBackground } from "@/src/billing/extpay";
+import { installWatchedSiteSchedule, runDueWatchedSites, runWatchedSite, WATCHED_SITE_ALARM } from "@/src/extension/watchedSites";
+import {
+  addWatchedSite,
+  listWatchedSites,
+  normalizeWatchedSiteUrl,
+  removeWatchedSite,
+  updateWatchedSiteSchedule,
+} from "@/src/storage/watchedSites";
+import type { WatchedSiteSchedule } from "@/src/types/graph";
 
 type AuditTarget = {
   tabId: number;
@@ -67,7 +77,11 @@ function progressReporter(requestId: unknown): ((update: ScanProgressUpdate) => 
 }
 
 export default defineBackground(() => {
+  startBillingBackground();
   installRequestCapture();
+  void installWatchedSiteSchedule().catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : "Could not initialize watched-site schedule");
+  });
   void refreshActiveTabBadge();
   void browser.tabs
     .query({ active: true, currentWindow: true })
@@ -79,9 +93,11 @@ export default defineBackground(() => {
 
   browser.commands.onCommand.addListener((command) => {
     if (command !== "scan-active-tab") return;
-    void scanActiveTab().catch((error: unknown) => {
-      console.error(error instanceof Error ? error.message : "Scan failed");
-    });
+    void getBillingStatus()
+      .then((billing) => scanActiveTab({ unlimitedHistory: billing.paid }))
+      .catch((error: unknown) => {
+        console.error(error instanceof Error ? error.message : "Scan failed");
+      });
   });
 
   if (browser.tabs?.onActivated) {
@@ -125,9 +141,14 @@ export default defineBackground(() => {
     });
   }
 
+  browser.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === WATCHED_SITE_ALARM) void runDueWatchedSites();
+  });
+
   browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "SCAN_ACTIVE_TAB") {
-      void scanActiveTab({ onProgress: progressReporter(message.requestId) })
+      void getBillingStatus()
+        .then((billing) => scanActiveTab({ unlimitedHistory: billing.paid, onProgress: progressReporter(message.requestId) }))
         .then((scanId) => sendResponse({ ok: true, scanId }))
         .catch((error: unknown) =>
           sendResponse({
@@ -141,14 +162,16 @@ export default defineBackground(() => {
     if (message?.type === "SCAN_QUIET") {
       const tabId = typeof message.tabId === "number" ? message.tabId : undefined;
       const url = typeof message.url === "string" ? message.url : undefined;
-      void scanActiveTab({
-        openReport: false,
-        tabId,
-        url,
-        notifyIfNew: false,
-        force: true,
-        onProgress: progressReporter(message.requestId),
-      })
+      void getBillingStatus()
+        .then((billing) => scanActiveTab({
+          openReport: false,
+          tabId,
+          url,
+          notifyIfNew: false,
+          force: true,
+          unlimitedHistory: billing.paid,
+          onProgress: progressReporter(message.requestId),
+        }))
         .then((scanId) => sendResponse({ ok: true, scanId }))
         .catch((error: unknown) =>
           sendResponse({
@@ -205,11 +228,101 @@ export default defineBackground(() => {
     }
 
     if (message?.type === "WATCH_ACTIVE_TAB") {
-      void watchActiveTab().catch((error: unknown) => {
-        console.error(error instanceof Error ? error.message : "Watch failed");
-      });
-      sendResponse({ ok: true });
-      return false;
+      void getBillingStatus()
+        .then((status) => {
+          if (!status.paid) throw new Error("The 15-second deep scan is a Pro feature.");
+          void watchActiveTab(undefined, true).catch((error: unknown) => {
+            console.error(error instanceof Error ? error.message : "Watch failed");
+          });
+          sendResponse({ ok: true });
+        })
+        .catch((error: unknown) =>
+          sendResponse({ ok: false, error: error instanceof Error ? error.message : "Watch failed" }),
+        );
+      return true;
+    }
+
+    if (message?.type === "GET_BILLING_STATUS") {
+      void getBillingStatus(Boolean(message.force))
+        .then((status) => sendResponse({ ok: true, status }))
+        .catch((error: unknown) =>
+          sendResponse({ ok: false, error: error instanceof Error ? error.message : "Could not check subscription" }),
+        );
+      return true;
+    }
+
+    if (message?.type === "OPEN_PRO_CHECKOUT" || message?.type === "OPEN_PRO_LOGIN") {
+      const action = message.type === "OPEN_PRO_CHECKOUT" ? openProCheckout : openProLogin;
+      void action()
+        .then(() => sendResponse({ ok: true }))
+        .catch((error: unknown) =>
+          sendResponse({ ok: false, error: error instanceof Error ? error.message : "Could not open billing" }),
+        );
+      return true;
+    }
+
+    if (message?.type === "LIST_WATCHED_SITES") {
+      void Promise.all([listWatchedSites(), getBillingStatus()])
+        .then(([sites, billing]) => sendResponse({ ok: true, sites, billing }))
+        .catch((error: unknown) =>
+          sendResponse({ ok: false, error: error instanceof Error ? error.message : "Could not load watched sites" }),
+        );
+      return true;
+    }
+
+    if (message?.type === "ADD_WATCHED_SITE") {
+      const url = typeof message.url === "string" ? message.url : "";
+      const schedule: WatchedSiteSchedule = message.schedule === "weekly" ? "weekly" : "daily";
+      void Promise.all([listWatchedSites(), getBillingStatus()])
+        .then(async ([sites, billing]) => {
+          const target = normalizeWatchedSiteUrl(url);
+          if (!billing.paid && sites.length >= 1 && !sites.some((site) => site.domain === target.domain)) {
+            throw new Error("Free includes one watched site. Upgrade to Pro for unlimited sites.");
+          }
+          const site = await addWatchedSite(url, schedule);
+          const scanId = await runWatchedSite(site);
+          sendResponse({ ok: true, site: { ...site, lastScanId: scanId } });
+        })
+        .catch((error: unknown) =>
+          sendResponse({ ok: false, error: error instanceof Error ? error.message : "Could not add watched site" }),
+        );
+      return true;
+    }
+
+    if (message?.type === "RUN_WATCHED_SITE") {
+      const domain = typeof message.domain === "string" ? message.domain : "";
+      void listWatchedSites()
+        .then(async (sites) => {
+          const site = sites.find((item) => item.domain === domain);
+          if (!site) throw new Error("Watched site not found.");
+          const scanId = await runWatchedSite(site);
+          sendResponse({ ok: true, scanId });
+        })
+        .catch((error: unknown) =>
+          sendResponse({ ok: false, error: error instanceof Error ? error.message : "Could not scan watched site" }),
+        );
+      return true;
+    }
+
+    if (message?.type === "UPDATE_WATCHED_SITE") {
+      const domain = typeof message.domain === "string" ? message.domain : "";
+      const schedule: WatchedSiteSchedule = message.schedule === "weekly" ? "weekly" : "daily";
+      void updateWatchedSiteSchedule(domain, schedule)
+        .then(() => sendResponse({ ok: true }))
+        .catch((error: unknown) =>
+          sendResponse({ ok: false, error: error instanceof Error ? error.message : "Could not update schedule" }),
+        );
+      return true;
+    }
+
+    if (message?.type === "REMOVE_WATCHED_SITE") {
+      const domain = typeof message.domain === "string" ? message.domain : "";
+      void removeWatchedSite(domain)
+        .then(() => sendResponse({ ok: true }))
+        .catch((error: unknown) =>
+          sendResponse({ ok: false, error: error instanceof Error ? error.message : "Could not remove watched site" }),
+        );
+      return true;
     }
 
     if (message?.type === "OPEN_DASHBOARD") {

@@ -18,6 +18,7 @@ export type ScanRunOptions = PersistScanOptions & {
   notifyIfNew?: boolean;
   force?: boolean;
   onProgress?: ProgressCallback;
+  allFrames?: boolean;
 };
 
 function reportProgress(
@@ -79,8 +80,8 @@ export async function getScanTarget(): Promise<{ id: number; url: string } | nul
   }
 }
 
-export async function injectCollector(tabId: number): Promise<RawScanPayload> {
-  const target = { tabId, allFrames: true as const };
+export async function injectCollector(tabId: number, allFrames = false): Promise<RawScanPayload> {
+  const target = allFrames ? { tabId, allFrames: true as const } : { tabId };
   try {
     await browser.scripting.executeScript({
       target,
@@ -160,7 +161,7 @@ export async function scanActiveTab(options: ScanRunOptions = {}): Promise<numbe
   let raw: RawScanPayload;
   try {
     reportProgress(options.onProgress, "collecting", 28, "Reading page resources…");
-    raw = withCapturedRequests(await injectCollector(tab.id), tab.id);
+    raw = withCapturedRequests(await injectCollector(tab.id, options.allFrames), tab.id);
   } catch (error) {
     stopRequestCapture(tab.id);
     throw error;
@@ -184,20 +185,21 @@ export async function scanActiveTab(options: ScanRunOptions = {}): Promise<numbe
   return scanId;
 }
 
-export async function watchActiveTab(durationMs = WATCH_DURATION_MS): Promise<number> {
+export async function watchActiveTab(durationMs = WATCH_DURATION_MS, unlimitedHistory = false): Promise<number> {
   const tab = await resolveTargetTab();
   const waitingUrl = browser.runtime.getURL(`/app.html#/watching?ms=${String(durationMs)}`);
   const waiting = await browser.tabs.create({ url: waitingUrl });
 
   startRequestCapture(tab.id);
   try {
-    const first = await injectCollector(tab.id);
+    const first = await injectCollector(tab.id, true);
     await delay(durationMs);
-    const second = await injectCollector(tab.id);
+    const second = await injectCollector(tab.id, true);
     const raw = withCapturedRequests(mergePayloads(first, second), tab.id);
     const scanId = await persistScan(raw, {
       captureMode: "watch",
       durationMs,
+      unlimitedHistory,
     });
     await refreshActiveTabBadge();
     await openGraphTab(scanId, waiting.id);

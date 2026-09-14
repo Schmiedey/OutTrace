@@ -22,6 +22,8 @@ import type {
 export type PersistScanOptions = {
   captureMode?: CaptureMode;
   durationMs?: number;
+  unlimitedHistory?: boolean;
+  watchedSite?: boolean;
 };
 
 export async function persistScan(raw: RawScanPayload, options: PersistScanOptions = {}): Promise<number> {
@@ -160,7 +162,7 @@ export async function persistScan(raw: RawScanPayload, options: PersistScanOptio
   const next = await getScan(scanId);
   const nextGraph = await getScanGraph(scanId);
   if (next && nextGraph) {
-    await recordScanAlert(previous, next, nextGraph, previousGraph);
+    await recordScanAlert(previous, next, nextGraph, previousGraph, options.watchedSite);
     if (newFollowHits.length > 0) {
       await notifyFollowedSeen({
         domain: next.domain,
@@ -169,7 +171,7 @@ export async function persistScan(raw: RawScanPayload, options: PersistScanOptio
       });
     }
   }
-  await pruneSnapshots();
+  await pruneSnapshots(Date.now(), options.unlimitedHistory);
 
   return scanId;
 }
@@ -251,6 +253,7 @@ export async function clearAllData(): Promise<void> {
       db.auditPages,
       db.auditPageGraphs,
       db.auditDomains,
+      db.watchedSites,
     ],
     async () => {
       await Promise.all([
@@ -264,6 +267,7 @@ export async function clearAllData(): Promise<void> {
         db.auditPages.clear(),
         db.auditPageGraphs.clear(),
         db.auditDomains.clear(),
+        db.watchedSites.clear(),
       ]);
     },
   );

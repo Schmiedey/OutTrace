@@ -141,7 +141,7 @@ export function SiteDetailPage() {
                 <td className="py-3">{formatCount(scan.thirdPartyCount)}</td>
                 <td className="py-3">{formatCount(scan.trackerCount)}</td>
                 <td className="py-3">
-                  <Badge>{scan.captureMode === "watch" ? "Watch" : "Snapshot"}</Badge>
+                  <Badge>{scan.captureMode === "watch" ? "Watch" : scan.captureMode === "scheduled" ? "Scheduled" : "Snapshot"}</Badge>
                 </td>
                 <td className="py-3 text-right">
                   {scan.id !== undefined ? (

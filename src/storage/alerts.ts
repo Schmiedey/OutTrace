@@ -35,12 +35,16 @@ export async function recordScanAlert(
   next: ScanRow,
   nextGraph: ScanGraphSnapshot,
   previousGraph: ScanGraphSnapshot | undefined,
+  watchedSite = false,
 ): Promise<AlertRow | null> {
   if (!previous?.id || next.id === undefined || !previousGraph) return null;
 
   const diff = diffSnapshots(previous, next, previousGraph, nextGraph);
   const delta = next.trackerCount - previous.trackerCount;
-  if (!isTrackerSurge(previous.trackerCount, next.trackerCount)) return null;
+  const addedDomains = diff.added.filter((node) => !node.isFirstParty).map((node) => node.domain);
+  const removedDomains = diff.removed.filter((node) => !node.isFirstParty).map((node) => node.domain);
+  const changedWatchedSite = watchedSite && (addedDomains.length > 0 || removedDomains.length > 0);
+  if (!changedWatchedSite && !isTrackerSurge(previous.trackerCount, next.trackerCount)) return null;
 
   const alert: AlertRow = {
     siteId: next.siteId,
@@ -48,9 +52,15 @@ export async function recordScanAlert(
     fromScanId: previous.id,
     toScanId: next.id,
     timestamp: next.timestamp,
-    kind: previous.trackerCount === 0 ? "new-trackers" : "tracker-surge",
+    kind: changedWatchedSite
+      ? "watched-site-change"
+      : previous.trackerCount === 0
+        ? "new-trackers"
+        : "tracker-surge",
     addedTrackers: diff.addedTrackers.map((node) => node.domain),
     removedTrackers: diff.removedTrackers.map((node) => node.domain),
+    addedDomains,
+    removedDomains,
     trackerDelta: delta,
     read: false,
   };
@@ -122,13 +132,20 @@ export async function notifyFollowedSeen(input: {
 
 async function notifyChange(alert: AlertRow, fromCount: number, toCount: number): Promise<void> {
   if (typeof browser === "undefined" || !browser.notifications?.create) return;
-  const added = alert.addedTrackers;
+  const added = alert.kind === "watched-site-change" ? (alert.addedDomains ?? []) : alert.addedTrackers;
+  const removed = alert.kind === "watched-site-change" ? (alert.removedDomains ?? []) : [];
   const title =
-    added.length > 0 ? `New trackers on ${alert.siteDomain}` : `More trackers on ${alert.siteDomain}`;
+    alert.kind === "watched-site-change"
+      ? `Change detected on ${alert.siteDomain}`
+      : added.length > 0
+        ? `New trackers on ${alert.siteDomain}`
+        : `More trackers on ${alert.siteDomain}`;
   const sample = added.slice(0, 3).join(", ");
   let message = `${String(fromCount)} → ${String(toCount)} tracker domains.`;
   if (added.length === 1) message = `${added[0]} appeared.`;
   else if (added.length > 1) message = `${String(added.length)} domains appeared${sample ? `: ${sample}` : ""}.`;
+  else if (removed.length === 1) message = `${removed[0]} disappeared.`;
+  else if (removed.length > 1) message = `${String(removed.length)} third-party domains disappeared.`;
 
   try {
     await browser.notifications.create(`linkscope-diff-${String(alert.fromScanId)}-${String(alert.toScanId)}`, {

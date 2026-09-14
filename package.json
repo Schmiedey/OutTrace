@@ -2,7 +2,7 @@
   "name": "linkscope",
   "description": "See every site, service, tracker, script, and external domain a webpage connects to.",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "wxt",
@@ -11,7 +11,10 @@
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
+    "check:secrets": "node scripts/check-secrets.mjs",
     "compile": "tsc --noEmit",
+    "prebuild": "npm run check:secrets",
+    "prezip": "npm run check:secrets",
     "postinstall": "wxt prepare"
   },
   "dependencies": {
@@ -23,6 +26,7 @@
     "cytoscape": "^3.34.2",
     "cytoscape-fcose": "^2.2.0",
     "dexie": "^4.2.1",
+    "extpay": "^3.1.2",
     "lucide-react": "^0.544.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

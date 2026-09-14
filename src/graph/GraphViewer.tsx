@@ -12,6 +12,8 @@ import type { GraphLayoutMode } from "@/src/graph/layouts";
 import { useGraphStore } from "@/src/graph/useGraphStore";
 import { isFollowedDomain, toggleFollowDomain } from "@/src/storage/follows";
 import type { ScanGraphSnapshot, ScanRow } from "@/src/types/graph";
+import { billingStatus } from "@/src/billing/client";
+import { useAsync } from "@/src/lib/useAsync";
 
 export function GraphViewer({
   snapshot,
@@ -42,6 +44,7 @@ export function GraphViewer({
   const navigate = useNavigate();
   const [menu, setMenu] = useState<{ domain: string; x: number; y: number; followed: boolean } | null>(null);
   const [tapTip, setTapTip] = useState<{ id: string; x: number; y: number } | null>(null);
+  const billing = useAsync(() => billingStatus(), []);
 
   const graph = useMemo(() => enrichSnapshot(snapshot), [snapshot]);
 
@@ -109,19 +112,12 @@ export function GraphViewer({
           />
         </label>
         <div className="flex items-center gap-3 text-[13px]">
-          <button type="button" className="text-mute hover:text-ink" onClick={() => exportScanJson(scan, graph)}>
-            JSON
-          </button>
-          <button type="button" className="text-mute hover:text-ink" onClick={() => exportScanCsv(graph)}>
-            CSV
-          </button>
-          <button
-            type="button"
-            className="text-mute hover:text-ink"
-            onClick={() => exportGraphPng(useGraphStore.getState().cy, graph.originDomain)}
-          >
-            PNG
-          </button>
+          {billing.data?.paid ? <>
+            <button type="button" className="text-mute hover:text-ink" onClick={() => exportScanJson(scan, graph)}>JSON</button>
+            <button type="button" className="text-mute hover:text-ink" onClick={() => exportScanCsv(graph)}>CSV</button>
+            <button type="button" className="text-mute hover:text-ink" onClick={() => exportGraphPng(useGraphStore.getState().cy, graph.originDomain)}>PNG</button>
+            <button type="button" className="text-mute hover:text-ink" onClick={() => window.print()}>PDF</button>
+          </> : <Link to="/pro" className="text-mute hover:text-ink">Export · Pro</Link>}
           <Link to={backTo.replace(/^#/, "")} className="text-mute hover:text-ink">
             Dashboard
           </Link>

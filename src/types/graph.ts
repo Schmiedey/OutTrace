@@ -92,7 +92,7 @@ export type SiteRow = {
   scanCount: number;
 };
 
-export type CaptureMode = "snapshot" | "watch";
+export type CaptureMode = "snapshot" | "watch" | "scheduled";
 
 export type ScanRow = {
   id?: number;
@@ -112,7 +112,7 @@ export type ScanRow = {
   iframeCount?: number;
 };
 
-export type AlertKind = "new-trackers" | "tracker-surge" | "followed-seen";
+export type AlertKind = "new-trackers" | "tracker-surge" | "followed-seen" | "watched-site-change";
 
 export type AlertRow = {
   id?: number;
@@ -124,8 +124,24 @@ export type AlertRow = {
   kind: AlertKind;
   addedTrackers: string[];
   removedTrackers: string[];
+  addedDomains?: string[];
+  removedDomains?: string[];
   trackerDelta: number;
   read: boolean;
+};
+
+export type WatchedSiteSchedule = "daily" | "weekly";
+
+export type WatchedSiteRow = {
+  domain: string;
+  url: string;
+  schedule: WatchedSiteSchedule;
+  enabled: boolean;
+  createdAt: number;
+  nextRunAt: number;
+  lastRunAt?: number;
+  lastScanId?: number;
+  lastError?: string;
 };
 
 export type SettingRow = {

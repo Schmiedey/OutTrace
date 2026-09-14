@@ -17,6 +17,8 @@ export default defineConfig({
       "activeTab",
       "scripting",
       "tabs",
+      "alarms",
+      "storage",
       "notifications",
       "webRequest",
       "declarativeNetRequest",

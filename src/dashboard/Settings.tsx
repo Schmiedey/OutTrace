@@ -1,4 +1,6 @@
 import { useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { billingStatus } from "@/src/billing/client";
 import { Button } from "@/src/components/ui/button";
 import { LIST_ATTRIBUTION } from "@/src/analysis/list";
 import { downloadJson } from "@/src/export/scanExport";
@@ -19,6 +21,7 @@ export function SettingsPage() {
   const [importBusy, setImportBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const notify = useAsync(() => notificationsEnabled(), []);
+  const billing = useAsync(() => billingStatus(), []);
   const isLocalhost = location.hostname === "localhost";
 
   const clear = async (): Promise<void> => {
@@ -52,6 +55,7 @@ export function SettingsPage() {
   };
 
   const exportAll = async (): Promise<void> => {
+    if (!billing.data?.paid) return;
     const data = await exportAllData();
     downloadJson("linkscope-archive.json", {
       ...data,
@@ -98,16 +102,16 @@ export function SettingsPage() {
       <section className="mb-8">
         <h2 className="text-[15px] font-medium">Privacy</h2>
         <p className="mt-2 text-[14px] leading-relaxed text-mute">
-          LinkScope scans only when you click the toolbar icon, press the shortcut, or start a 15-second watch. It does
-          not run on every page in the background and does not send data to a server. Snapshots older than 30 days, or
-          past 150 stored scans, are deleted locally.
+          Manual scans run only when you open LinkScope or use its shortcut. Sites you explicitly add to Watching are
+          revisited daily or weekly from this browser. Scan contents stay on this device; ExtensionPay receives only
+          the account and subscription information needed to verify Pro. Free history keeps the latest 20 scans.
         </p>
       </section>
       <section className="mb-8">
         <h2 className="text-[15px] font-medium">Change alerts</h2>
         <p className="mt-2 mb-4 text-[14px] leading-relaxed text-mute">
-          When a rescan finds new tracker domains, or a watched domain appears on another site you check, LinkScope can
-          notify this browser. Nothing is uploaded.
+          When a watched-site check finds a third-party domain that appeared or disappeared, or a tracked domain appears
+          on another site you check, LinkScope can notify this browser.
         </p>
         <Button variant="ghost" onClick={() => void toggleNotify()}>
           {(notify.data ?? true) ? "Notifications on" : "Notifications off"}
@@ -131,11 +135,11 @@ export function SettingsPage() {
       <section className="mb-8">
         <h2 className="text-[15px] font-medium">Export & import</h2>
         <p className="mt-2 mb-4 text-[14px] text-mute">
-          Download every saved scan as JSON, or restore an archive from another browser. Duplicate scans are skipped.
+          Pro can download every saved scan as JSON. Archives can be restored in any plan; duplicate scans are skipped.
         </p>
         <div className="flex flex-wrap gap-2">
-          <Button variant="ghost" onClick={() => void exportAll()}>
-            {exported ? "Archive downloaded" : "Export all scans"}
+          <Button variant="ghost" disabled={!billing.data?.paid} onClick={() => void exportAll()}>
+            {exported ? "Archive downloaded" : billing.data?.paid ? "Export all scans" : "Export all · Pro"}
           </Button>
           <Button variant="ghost" disabled={importBusy} onClick={() => fileRef.current?.click()}>
             {importBusy ? "Importing…" : "Import archive"}
@@ -150,6 +154,7 @@ export function SettingsPage() {
         </div>
         {imported ? <p className="mt-3 text-[13px] text-lime">{imported}</p> : null}
         {importError ? <p className="mt-3 text-[13px] text-rose">{importError}</p> : null}
+        {!billing.data?.paid ? <p className="mt-3 text-[12px] text-mute"><Link to="/pro" className="underline">View Pro</Link> for unlimited history and export.</p> : null}
       </section>
       <section className="mb-8">
         <h2 className="text-[15px] font-medium">Sample data</h2>

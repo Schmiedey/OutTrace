@@ -18,6 +18,7 @@ import { SettingsPage } from "@/src/dashboard/Settings";
 import { SiteDetailPage } from "@/src/dashboard/SiteDetail";
 import { SitesPage } from "@/src/dashboard/Sites";
 import { WatchingPage } from "@/src/dashboard/Watching";
+import { ProPage } from "@/src/dashboard/Pro";
 
 export function App() {
   return (
@@ -42,6 +43,7 @@ export function App() {
           <Route path="/domains" element={<DomainsPage />} />
           <Route path="/domains/:domain" element={<DomainDetailPage />} />
           <Route path="/following" element={<FollowingPage />} />
+          <Route path="/pro" element={<ProPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Routes>

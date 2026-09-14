@@ -1,8 +1,8 @@
 # LinkScope
 
-Local-first Chrome extension that reads the current page, shows who else is on it, and maps connected domains as a graph.
+Local-first Chrome extension that reads pages, shows who else is on them, and maps connected domains as a graph.
 
-LinkScope does **not** send data to a server. There are no accounts. It does **not** scan pages until you click.
+Manual scans stay free and run when you open LinkScope. Sites explicitly added to **Watching** can be revisited daily or weekly by the browser. Scan contents stay local. ExtensionPay handles the account and subscription status for Pro through Stripe.
 
 ## Load unpacked
 
@@ -21,15 +21,33 @@ LinkScope does **not** send data to a server. There are no accounts. It does **n
 4. Click a domain for a load chain (page → iframe or script → domain) and watch/block actions
 5. Press **Inspect** for the full graph, or **Watch 15 seconds** to catch delayed requests
 
+## Pro billing and Stripe sandbox
+
+LinkScope uses [ExtensionPay](https://extensionpay.com) for hosted Stripe Checkout and license checks. Create a LinkScope product in ExtensionPay, then set its public product slug:
+
+```bash
+cp .env.example .env
+# Edit WXT_EXTPAY_EXTENSION_ID if your ExtensionPay slug is not "linkscope"
+```
+
+Unpacked development builds automatically use ExtensionPay's development flow and Stripe test mode. Chrome Web Store builds use the live payment flow. Never put a Stripe secret key in this extension.
+
+Connect the Stripe account from the ExtensionPay dashboard. LinkScope does not read Stripe publishable or secret API keys directly. Production builds and ZIPs run a secret scan and fail if a Stripe secret is found in the project.
+
+Free includes one watched site and keeps the latest 20 local scans. Pro unlocks unlimited watched sites, unlimited history/export, and iframe-aware deep scans.
+
 The toolbar badge shows the third-party count, or `+N` new domains since last visit to this site.
 
 ## Permissions
 
 - `activeTab` + `scripting` — scan the tab you clicked
 - `tabs` — open the graph / dashboard and update the badge from saved scans
+- `alarms` — wake hourly to run due daily or weekly checks for sites you explicitly watch
+- `storage` — retain ExtensionPay's local license token and cached subscription status
 - `webRequest` — while a scan/watch is running, record initiator/document URLs for that tab
-- `notifications` — optional local alerts when a watched domain appears elsewhere
-- `declarativeNetRequest` + optional host access — only if you click **Block this domain**
+- `notifications` — optional local alerts for watched-site changes or tracked domains
+- `declarativeNetRequest` — only if you click **Block this domain**
+- Optional host access — requested per site for Free watched sites and standard audits. Pro asks for all-site access only when deep iframe scanning is enabled, because embedded frames can use unrelated origins. Blocking also requests access when used.
 
 No required host permissions. Pages are not injected at `document_start`.
 
