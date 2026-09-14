@@ -1,5 +1,9 @@
 import { lookupDisconnect } from "@/src/analysis/list";
-import type { DomainCategory } from "@/src/types/graph";
+import type {
+  ClassificationConfidence,
+  ClassificationSource,
+  DomainCategory,
+} from "@/src/types/graph";
 
 const SEED: Record<string, DomainCategory> = {
   "google-analytics.com": "analytics",
@@ -215,6 +219,8 @@ export type DomainDescription = {
   category: DomainCategory;
   owner?: string;
   listed: boolean;
+  source: ClassificationSource;
+  confidence: ClassificationConfidence;
 };
 
 function categorizeFromSeed(domain: string): DomainCategory | null {
@@ -231,10 +237,37 @@ export function describeDomain(domain: string): DomainDescription {
   const listed = lookupDisconnect(domain);
   const seed = categorizeFromSeed(domain);
   const pattern = categorizeByPattern(domain.toLowerCase());
+  if (seed) {
+    return {
+      category: seed,
+      owner: listed?.owner,
+      listed: Boolean(listed),
+      source: "curated-list",
+      confidence: "high",
+    };
+  }
+  if (listed) {
+    return {
+      category: listed.category,
+      owner: listed.owner,
+      listed: true,
+      source: "disconnect-list",
+      confidence: "high",
+    };
+  }
+  if (pattern) {
+    return {
+      category: pattern,
+      listed: false,
+      source: "heuristic",
+      confidence: "medium",
+    };
+  }
   return {
-    category: seed ?? listed?.category ?? pattern ?? "unknown",
-    owner: listed?.owner,
-    listed: Boolean(listed),
+    category: "unknown",
+    listed: false,
+    source: "unknown",
+    confidence: "low",
   };
 }
 

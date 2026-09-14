@@ -44,7 +44,18 @@ export function exportScanCsv(snapshot: ScanGraphSnapshot): void {
   }
 
   const lines = [
-    ["domain", "category", "owner", "listed", "firstParty", "origin", "references", "types"].join(","),
+    [
+      "domain",
+      "category",
+      "classificationSource",
+      "classificationConfidence",
+      "owner",
+      "listed",
+      "firstParty",
+      "origin",
+      "references",
+      "types",
+    ].join(","),
   ];
   for (const node of snapshot.nodes) {
     const types = Array.from(typesByDomain.get(node.domain) ?? []).sort().join(" ");
@@ -52,6 +63,8 @@ export function exportScanCsv(snapshot: ScanGraphSnapshot): void {
       [
         csvCell(node.domain),
         csvCell(node.category),
+        csvCell(node.classificationSource),
+        csvCell(node.classificationConfidence),
         csvCell(node.owner),
         csvCell(node.listed ? "yes" : "no"),
         csvCell(node.isFirstParty ? "yes" : "no"),

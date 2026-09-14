@@ -7,12 +7,11 @@ import { downloadJson } from "@/src/export/scanExport";
 import { importArchive, parseArchive } from "@/src/storage/archive";
 import { clearAllData, exportAllData } from "@/src/storage/scans";
 import { notificationsEnabled, setNotificationsEnabled } from "@/src/storage/settings";
-import { seedLiveTen, seedSampleSite } from "@/src/storage/seed";
+import { seedLiveTen } from "@/src/storage/seed";
 import { useAsync } from "@/src/lib/useAsync";
 
 export function SettingsPage() {
   const [cleared, setCleared] = useState(false);
-  const [seeded, setSeeded] = useState(false);
   const [liveSeeded, setLiveSeeded] = useState(false);
   const [liveBusy, setLiveBusy] = useState(false);
   const [exported, setExported] = useState(false);
@@ -28,18 +27,10 @@ export function SettingsPage() {
     const confirmed = window.confirm("Delete every saved scan, domain, and graph from this browser?");
     if (!confirmed) return;
     await clearAllData();
-    sessionStorage.removeItem("linkscope-sample-seeded");
     sessionStorage.removeItem("linkscope-live-ten");
     setCleared(true);
-    setSeeded(false);
     setLiveSeeded(false);
     setImported(null);
-  };
-
-  const seed = async (): Promise<void> => {
-    await seedSampleSite();
-    setSeeded(true);
-    setCleared(false);
   };
 
   const seedLive = async (): Promise<void> => {
@@ -104,14 +95,15 @@ export function SettingsPage() {
         <p className="mt-2 text-[14px] leading-relaxed text-mute">
           Manual scans run only when you open LinkScope or use its shortcut. Sites you explicitly add to Watching are
           revisited daily or weekly from this browser. Scan contents stay on this device; ExtensionPay receives only
-          the account and subscription information needed to verify Pro. Free history keeps the latest 20 scans.
+          the account and subscription information needed to verify Pro. Free history keeps up to 20 scans for 30
+          days; Pro keeps up to 1,000 scans for one year.
         </p>
       </section>
       <section className="mb-8">
         <h2 className="text-[15px] font-medium">Change alerts</h2>
         <p className="mt-2 mb-4 text-[14px] leading-relaxed text-mute">
-          When a watched-site check finds a third-party domain that appeared or disappeared, or a tracked domain appears
-          on another site you check, LinkScope can notify this browser.
+          LinkScope sends a weekly summary when watched sites changed. It can also notify you when a domain you follow
+          appears on another site you check. It stays quiet when nothing changed.
         </p>
         <Button variant="ghost" onClick={() => void toggleNotify()}>
           {(notify.data ?? true) ? "Notifications on" : "Notifications off"}
@@ -154,22 +146,17 @@ export function SettingsPage() {
         </div>
         {imported ? <p className="mt-3 text-[13px] text-lime">{imported}</p> : null}
         {importError ? <p className="mt-3 text-[13px] text-rose">{importError}</p> : null}
-        {!billing.data?.paid ? <p className="mt-3 text-[12px] text-mute"><Link to="/pro" className="underline">View Pro</Link> for unlimited history and export.</p> : null}
+        {!billing.data?.paid ? <p className="mt-3 text-[12px] text-mute"><Link to="/pro" className="underline">View Pro</Link> for one-year history and export.</p> : null}
       </section>
-      <section className="mb-8">
-        <h2 className="text-[15px] font-medium">Sample data</h2>
-        <p className="mt-2 mb-4 text-[14px] text-mute">
-          Optional demo snapshot for theguardian.com. It is not a scan you ran and is not added unless you click.
-        </p>
-        <Button variant="ghost" onClick={() => void seed()}>
-          {seeded ? "Sample site saved" : "Add sample site"}
-        </Button>
-        {isLocalhost ? (
+      {isLocalhost ? (
+        <section className="mb-8">
+          <h2 className="text-[15px] font-medium">Development fixtures</h2>
+          <p className="mt-2 mb-4 text-[14px] text-mute">Load captured page data while developing locally.</p>
           <Button className="ml-2" variant="ghost" disabled={liveBusy} onClick={() => void seedLive()}>
             {liveSeeded ? "10 live scans saved" : liveBusy ? "Saving…" : "Load 10 live scans"}
           </Button>
-        ) : null}
-      </section>
+        </section>
+      ) : null}
       <section>
         <h2 className="text-[15px] font-medium">Danger zone</h2>
         <p className="mt-2 mb-4 text-[14px] text-mute">This cannot be undone.</p>

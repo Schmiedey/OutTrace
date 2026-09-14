@@ -21,7 +21,10 @@ export type NormalizedScan = {
 };
 
 function sourceUrlOf(finding: RawFinding, pageUrl: string): string {
-  const candidate = finding.initiatorUrl || finding.documentUrl;
+  // A frame's document URL is the strongest evidence of the immediate parent
+  // in the load chain. webRequest's initiator often collapses back to the
+  // top-level security origin and would turn the graph into a flat star.
+  const candidate = finding.documentUrl || finding.initiatorUrl;
   if (!candidate) return pageUrl;
   try {
     const protocol = new URL(candidate).protocol;
@@ -112,7 +115,13 @@ export function normalizeScan(raw: RawScanPayload): NormalizedScan {
     const isOrigin = domain === originDomain;
     const isFirstParty = isOrigin || isFirstPartyDomain(originDomain, domain);
     const listed = isOrigin
-      ? { category: "origin" as const, listed: false, owner: undefined }
+      ? {
+          category: "origin" as const,
+          listed: false,
+          owner: undefined,
+          source: "first-party" as const,
+          confidence: "high" as const,
+        }
       : describeDomain(domain);
     nodes.push({
       id: domain,
@@ -125,6 +134,8 @@ export function normalizeScan(raw: RawScanPayload): NormalizedScan {
       hostnames: Array.from(hostnamesByDomain.get(domain) ?? [domain]).sort(),
       owner: listed.owner,
       listed: listed.listed,
+      classificationSource: isFirstParty ? "first-party" : listed.source,
+      classificationConfidence: isFirstParty ? "high" : listed.confidence,
     });
   }
 

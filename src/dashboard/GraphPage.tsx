@@ -5,12 +5,17 @@ import { GraphViewer } from "@/src/graph/GraphViewer";
 import { formatCount } from "@/src/lib/utils";
 import { useAsync } from "@/src/lib/useAsync";
 import { getScan, getScanGraph, listScansForSite } from "@/src/storage/scans";
+import { isWatchedSite } from "@/src/storage/watchedSites";
 
 export function GraphPage() {
   const params = useParams();
   const scanId = Number(params.scanId);
   const scan = useAsync(() => getScan(scanId), [scanId]);
   const graph = useAsync(() => getScanGraph(scanId), [scanId]);
+  const watched = useAsync(async () => {
+    const current = await getScan(scanId);
+    return current ? await isWatchedSite(current.domain) : false;
+  }, [scanId]);
   const previousGraph = useAsync(async () => {
     const current = await getScan(scanId);
     if (!current) return undefined;
@@ -21,7 +26,7 @@ export function GraphPage() {
   }, [scanId]);
 
   const newDomains = useMemo(() => {
-    if (!graph.data || !previousGraph.data) return [];
+    if (!watched.data || !graph.data || !previousGraph.data) return [];
     const prevIds = new Set(
       enrichSnapshot(previousGraph.data)
         .nodes.filter((node) => !node.isOrigin)
@@ -30,7 +35,7 @@ export function GraphPage() {
     return enrichSnapshot(graph.data)
       .nodes.filter((node) => !node.isOrigin && !prevIds.has(node.domain))
       .map((node) => node.domain);
-  }, [graph.data, previousGraph.data]);
+  }, [graph.data, previousGraph.data, watched.data]);
 
   if (!Number.isFinite(scanId)) {
     return <p className="p-8 text-mute">Invalid scan.</p>;

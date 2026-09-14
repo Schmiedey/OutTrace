@@ -3,14 +3,26 @@ import { isFirstPartyDomain } from "@/src/analysis/firstParty";
 import type { GraphNodeRecord, ScanGraphSnapshot } from "@/src/types/graph";
 
 export function withFirstParty(originDomain: string, node: GraphNodeRecord): GraphNodeRecord {
-  if (node.isOrigin) return { ...node, isFirstParty: true, listed: false, owner: undefined };
+  if (node.isOrigin) {
+    return {
+      ...node,
+      isFirstParty: true,
+      listed: false,
+      owner: undefined,
+      classificationSource: "first-party",
+      classificationConfidence: "high",
+    };
+  }
   const listed = describeDomain(node.domain);
+  const firstParty = Boolean(node.isFirstParty) || isFirstPartyDomain(originDomain, node.domain);
   return {
     ...node,
-    isFirstParty: Boolean(node.isFirstParty) || isFirstPartyDomain(originDomain, node.domain),
+    isFirstParty: firstParty,
     category: node.isOrigin ? "origin" : listed.category,
     owner: listed.owner,
     listed: listed.listed,
+    classificationSource: firstParty ? "first-party" : listed.source,
+    classificationConfidence: firstParty ? "high" : listed.confidence,
   };
 }
 

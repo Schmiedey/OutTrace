@@ -44,10 +44,12 @@ function delay(ms: number): Promise<void> {
 }
 
 function mergeFindings(base: RawFinding[], extra: RawFinding[]): RawFinding[] {
-  const seen = new Set(base.map((item) => `${item.type}|${item.url}|${item.documentUrl ?? ""}`));
+  const findingKey = (item: RawFinding): string =>
+    `${item.type}|${item.url}|${item.documentUrl ?? ""}|${item.initiatorUrl ?? ""}`;
+  const seen = new Set(base.map(findingKey));
   const findings = [...base];
   for (const item of extra) {
-    const key = `${item.type}|${item.url}|${item.documentUrl ?? ""}`;
+    const key = findingKey(item);
     if (seen.has(key)) continue;
     seen.add(key);
     findings.push(item);
@@ -80,18 +82,34 @@ export async function getScanTarget(): Promise<{ id: number; url: string } | nul
   }
 }
 
-export async function injectCollector(tabId: number, allFrames = false): Promise<RawScanPayload> {
+function injectionFailure(error: unknown): Error {
+  const detail = error instanceof Error ? error.message : String(error ?? "");
+  const lower = detail.toLowerCase();
+  if (lower.includes("cannot access") || lower.includes("missing host permission")) {
+    return new Error("LinkScope could not access this page. Reload it and try again, or restore the site-access permission.");
+  }
+  if (lower.includes("frame") || lower.includes("script") || lower.includes("injection")) {
+    return new Error("This page blocked the LinkScope scanner. Reload the page and try again.");
+  }
+  return new Error("The page could not be scanned. Reload it and try again.");
+}
+
+export async function injectCollector(tabId: number, allFrames = true): Promise<RawScanPayload> {
   const target = allFrames ? { tabId, allFrames: true as const } : { tabId };
   try {
     await browser.scripting.executeScript({
       target,
       files: ["/page-scanner.js"],
     });
-  } catch {
-    await browser.scripting.executeScript({
-      target: { tabId },
-      files: ["/page-scanner.js"],
-    });
+  } catch (error) {
+    try {
+      await browser.scripting.executeScript({
+        target: { tabId },
+        files: ["/page-scanner.js"],
+      });
+    } catch {
+      throw injectionFailure(error);
+    }
   }
 
   let results: Array<{ frameId?: number; result?: RawScanPayload }>;
@@ -100,11 +118,15 @@ export async function injectCollector(tabId: number, allFrames = false): Promise
       target,
       func: readInjectedScan,
     })) as Array<{ frameId?: number; result?: RawScanPayload }>;
-  } catch {
-    results = (await browser.scripting.executeScript({
-      target: { tabId },
-      func: readInjectedScan,
-    })) as Array<{ frameId?: number; result?: RawScanPayload }>;
+  } catch (error) {
+    try {
+      results = (await browser.scripting.executeScript({
+        target: { tabId },
+        func: readInjectedScan,
+      })) as Array<{ frameId?: number; result?: RawScanPayload }>;
+    } catch {
+      throw injectionFailure(error);
+    }
   }
 
   const payloads = results
@@ -115,7 +137,7 @@ export async function injectCollector(tabId: number, allFrames = false): Promise
     payloads.find((item) => item.hostname) ??
     payloads[0];
   if (!top) {
-    throw new Error("The page did not return any scan data.");
+    throw new Error("The page returned no scan data. Its security policy may have blocked the scanner.");
   }
 
   let merged = top;
@@ -185,7 +207,7 @@ export async function scanActiveTab(options: ScanRunOptions = {}): Promise<numbe
   return scanId;
 }
 
-export async function watchActiveTab(durationMs = WATCH_DURATION_MS, unlimitedHistory = false): Promise<number> {
+export async function watchActiveTab(durationMs = WATCH_DURATION_MS, extendedHistory = false): Promise<number> {
   const tab = await resolveTargetTab();
   const waitingUrl = browser.runtime.getURL(`/app.html#/watching?ms=${String(durationMs)}`);
   const waiting = await browser.tabs.create({ url: waitingUrl });
@@ -199,7 +221,7 @@ export async function watchActiveTab(durationMs = WATCH_DURATION_MS, unlimitedHi
     const scanId = await persistScan(raw, {
       captureMode: "watch",
       durationMs,
-      unlimitedHistory,
+      extendedHistory,
     });
     await refreshActiveTabBadge();
     await openGraphTab(scanId, waiting.id);

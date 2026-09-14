@@ -89,7 +89,7 @@ export function PopupApp() {
 
   const nutrition = glance ? nutritionFromScan(glance.latest, glance.latestGraph) : null;
   const diff =
-    glance?.latest && glance.previous && glance.latestGraph && glance.previousGraph
+    glance?.watched && glance.latest && glance.previous && glance.latestGraph && glance.previousGraph
       ? diffSnapshots(glance.previous, glance.latest, glance.previousGraph, glance.latestGraph)
       : undefined;
 
@@ -136,6 +136,8 @@ export function PopupApp() {
         {checking ? <p className="text-[11px] text-mute">Auditing live</p> : null}
       </div>
       <h1 className="font-display mt-1.5 break-all text-[26px] leading-tight">{host}</h1>
+
+      {!checking && !blocked ? <p className="mt-1 text-[11px] text-mute">Shortcut: Alt+Shift+L</p> : null}
 
       {blocked ? <p className="mt-3 text-[12px] text-amber">{blocked}</p> : null}
       {error ? <p className="mt-3 text-[12px] text-rose">{error}</p> : null}

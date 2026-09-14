@@ -22,7 +22,7 @@ import type {
 export type PersistScanOptions = {
   captureMode?: CaptureMode;
   durationMs?: number;
-  unlimitedHistory?: boolean;
+  extendedHistory?: boolean;
   watchedSite?: boolean;
 };
 
@@ -35,6 +35,7 @@ export async function persistScan(raw: RawScanPayload, options: PersistScanOptio
   const previousGraph = previous?.id !== undefined ? await getScanGraph(previous.id) : undefined;
 
   const followed = new Set(await listFollowedDomains());
+  const watched = options.watchedSite ?? Boolean(await db.watchedSites.get(normalized.originDomain));
   const newFollowHits: string[] = [];
 
   const scanId = await db.transaction("rw", db.sites, db.scans, db.scanGraphs, db.domains, db.sightings, async () => {
@@ -162,7 +163,7 @@ export async function persistScan(raw: RawScanPayload, options: PersistScanOptio
   const next = await getScan(scanId);
   const nextGraph = await getScanGraph(scanId);
   if (next && nextGraph) {
-    await recordScanAlert(previous, next, nextGraph, previousGraph, options.watchedSite);
+    await recordScanAlert(previous, next, nextGraph, previousGraph, watched);
     if (newFollowHits.length > 0) {
       await notifyFollowedSeen({
         domain: next.domain,
@@ -171,7 +172,7 @@ export async function persistScan(raw: RawScanPayload, options: PersistScanOptio
       });
     }
   }
-  await pruneSnapshots(Date.now(), options.unlimitedHistory);
+  await pruneSnapshots(Date.now(), options.extendedHistory);
 
   return scanId;
 }
@@ -278,6 +279,7 @@ export async function getOverviewStats(): Promise<{
   domains: number;
   connections: number;
   trackers: number;
+  scansThisMonth: number;
 }> {
   const [sites, domains, scans] = await Promise.all([
     db.sites.count(),
@@ -288,12 +290,17 @@ export async function getOverviewStats(): Promise<{
   const trackerRows = await db.domains
     .filter((row) => row.category === "analytics" || row.category === "advertising" || row.category === "telemetry")
     .count();
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+  const scansThisMonth = scans.filter((scan) => scan.timestamp >= startOfMonth.getTime()).length;
 
   return {
     sites,
     domains,
     connections,
     trackers: trackerRows,
+    scansThisMonth,
   };
 }
 

@@ -22,6 +22,10 @@ export async function listWatchedSites(): Promise<WatchedSiteRow[]> {
   return await db.watchedSites.orderBy("createdAt").reverse().toArray();
 }
 
+export async function isWatchedSite(domain: string): Promise<boolean> {
+  return Boolean((await db.watchedSites.get(domain))?.enabled);
+}
+
 export async function listDueWatchedSites(now = Date.now()): Promise<WatchedSiteRow[]> {
   return await db.watchedSites
     .where("nextRunAt")

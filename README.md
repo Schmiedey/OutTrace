@@ -34,7 +34,7 @@ Unpacked development builds automatically use ExtensionPay's development flow an
 
 Connect the Stripe account from the ExtensionPay dashboard. LinkScope does not read Stripe publishable or secret API keys directly. Production builds and ZIPs run a secret scan and fail if a Stripe secret is found in the project.
 
-Free includes one watched site and keeps the latest 20 local scans. Pro unlocks unlimited watched sites, unlimited history/export, and iframe-aware deep scans.
+Free includes one watched site and keeps up to 20 local scans for 30 days. Pro unlocks unlimited watched sites, export, and extended local history capped at 1,000 scans or one year. Ordinary scans inspect every accessible frame; Pro deep scans add a 15-second request window and all-site access for cross-origin frames.
 
 The toolbar badge shows the third-party count, or `+N` new domains since last visit to this site.
 
@@ -50,6 +50,8 @@ The toolbar badge shows the third-party count, or `+N` new domains since last vi
 - Optional host access — requested per site for Free watched sites and standard audits. Pro asks for all-site access only when deep iframe scanning is enabled, because embedded frames can use unrelated origins. Blocking also requests access when used.
 
 No required host permissions. Pages are not injected at `document_start`.
+
+Permission audit: every declared permission above has a matching runtime feature. LinkScope does not request cookies, browsing history, identity, clipboard, or required host access.
 
 ## Development
 

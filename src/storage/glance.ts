@@ -9,6 +9,7 @@ export type SiteGlance = {
   latestGraph?: ScanGraphSnapshot;
   previousGraph?: ScanGraphSnapshot;
   siteCount: number;
+  watched: boolean;
 };
 
 export async function getSiteGlance(domain: string): Promise<SiteGlance | null> {
@@ -18,10 +19,11 @@ export async function getSiteGlance(domain: string): Promise<SiteGlance | null> 
   const latest = scans[0];
   if (!latest) return null;
   const previous = scans[1];
-  const [latestGraph, previousGraph, sites] = await Promise.all([
+  const [latestGraph, previousGraph, sites, watched] = await Promise.all([
     latest.id !== undefined ? getScanGraph(latest.id) : Promise.resolve(undefined),
     previous?.id !== undefined ? getScanGraph(previous.id) : Promise.resolve(undefined),
     listSites(),
+    db.watchedSites.get(domain),
   ]);
   return {
     site,
@@ -30,6 +32,7 @@ export async function getSiteGlance(domain: string): Promise<SiteGlance | null> 
     latestGraph,
     previousGraph,
     siteCount: sites.length,
+    watched: Boolean(watched?.enabled),
   };
 }
 

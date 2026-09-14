@@ -7,7 +7,7 @@ import { Button } from "@/src/components/ui/button";
 import { OwnerGroups } from "@/src/components/OwnerGroups";
 import { WhyChain } from "@/src/components/WhyChain";
 import { useGraphStore } from "@/src/graph/useGraphStore";
-import { identifyDomain, riskLabel, seenOnShare } from "@/src/analysis/identity";
+import { classificationLabel, identifyDomain, riskLabel, seenOnShare } from "@/src/analysis/identity";
 import { groupSnapshotByOwner, siblingsFromOwner } from "@/src/analysis/owners";
 import { loadChainFor } from "@/src/analysis/why";
 import { formatShortDate } from "@/src/lib/utils";
@@ -54,6 +54,7 @@ export function NodeInspector({ snapshot }: { snapshot: ScanGraphSnapshot }) {
   }
 
   const evidence = edges.flatMap((edge) => edge.evidence).slice(0, 12);
+  const identity = identifyDomain(node.domain);
 
   const copy = async (): Promise<void> => {
     await navigator.clipboard.writeText(node.domain);
@@ -74,7 +75,7 @@ export function NodeInspector({ snapshot }: { snapshot: ScanGraphSnapshot }) {
       </div>
       <div className="min-h-0 flex-1 space-y-5 overflow-auto px-4 py-4">
         <div className="grid grid-cols-2 gap-3 text-[12px]">
-          <Stat label="Type" value={identifyDomain(node.domain).typeLabel} />
+          <Stat label="Type" value={node.isFirstParty && !node.isOrigin ? "First party" : identity.typeLabel} />
           <Stat label="Owned by" value={node.owner ?? "Unlisted"} />
           <Stat
             label="Found on"
@@ -82,9 +83,16 @@ export function NodeInspector({ snapshot }: { snapshot: ScanGraphSnapshot }) {
           />
           <Stat
             label="Risk"
-            value={`${riskLabel(identifyDomain(node.domain).risk)}${row ? ` · first ${formatShortDate(row.firstSeen)}` : ""}`}
+            value={`${riskLabel(identity.risk)}${row ? ` · first ${formatShortDate(row.firstSeen)}` : ""}`}
           />
         </div>
+        <Stat
+          label="Classification"
+          value={classificationLabel(
+            node.classificationSource ?? identity.classificationSource,
+            node.classificationConfidence ?? identity.classificationConfidence,
+          )}
+        />
         <section>
           <h3 className="mb-2 text-[12px] text-mute">Hostnames</h3>
           <ul className="space-y-1">

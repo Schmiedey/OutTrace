@@ -19,7 +19,7 @@ export function OverviewPage() {
   }, []);
   const densest = scans.data?.slice().sort((a, b) => b.trackerCount - a.trackerCount || b.nodeCount - a.nodeCount)[0];
   const insights = insightLines(
-    stats.data ?? { sites: 0, domains: 0, connections: 0, trackers: 0 },
+    stats.data ?? { sites: 0, domains: 0, connections: 0, trackers: 0, scansThisMonth: 0 },
     densest?.domain,
     densest?.trackerCount,
   );
@@ -28,6 +28,11 @@ export function OverviewPage() {
     <div className="px-10 py-10">
       <header className="mb-10">
         <h1 className="font-display text-4xl">Your map so far</h1>
+        {stats.data ? (
+          <p className="mt-2 text-[13px] text-mute">
+            You’ve scanned {formatCount(stats.data.scansThisMonth)} {stats.data.scansThisMonth === 1 ? "site" : "sites"} this month.
+          </p>
+        ) : null}
       </header>
       <div className="mb-8">
         <AuditSiteCard />
@@ -134,7 +139,7 @@ function EmptyState() {
     <div className="py-10">
       <p className="font-display text-2xl">No scans yet</p>
       <p className="mt-2 text-[13px] text-mute">
-        Open a website and click the LinkScope icon. Nothing is scanned until you do.
+        Open a website and click the LinkScope icon, or press Alt+Shift+L. Nothing is scanned until you do.
       </p>
     </div>
   );

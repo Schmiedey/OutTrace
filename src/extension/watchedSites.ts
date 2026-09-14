@@ -52,8 +52,8 @@ export async function runWatchedSite(site: WatchedSiteRow): Promise<number> {
       force: true,
       captureMode: billing.paid ? "scheduled" : "snapshot",
       watchedSite: billing.paid,
-      unlimitedHistory: billing.paid,
-      allFrames: billing.paid,
+      extendedHistory: billing.paid,
+      allFrames: true,
     });
     await recordWatchedSiteResult(site.domain, site.schedule, { scanId });
     return scanId;

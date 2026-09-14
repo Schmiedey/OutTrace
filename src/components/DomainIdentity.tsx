@@ -1,4 +1,10 @@
-import { identifyDomain, riskLabel, seenOnShare, type DomainIdentity } from "@/src/analysis/identity";
+import {
+  classificationLabel,
+  identifyDomain,
+  riskLabel,
+  seenOnShare,
+  type DomainIdentity,
+} from "@/src/analysis/identity";
 import { DomainActions } from "@/src/components/DomainActions";
 import { WhyChain } from "@/src/components/WhyChain";
 import { Badge } from "@/src/components/ui/badge";
@@ -25,6 +31,9 @@ export function DomainIdentityCard({
 }) {
   const identity: DomainIdentity = identifyDomain(domain);
   const chain = snapshot ? loadChainFor(snapshot, domain) : undefined;
+  const node = snapshot?.nodes.find((item) => item.domain === domain);
+  const classificationSource = node?.classificationSource ?? identity.classificationSource;
+  const classificationConfidence = node?.classificationConfidence ?? identity.classificationConfidence;
   const riskTone = identity.risk === "high" ? "rose" : identity.risk === "medium" ? "amber" : "lime";
 
   return (
@@ -39,7 +48,11 @@ export function DomainIdentityCard({
         <p className="mt-0.5 break-all text-[12px] text-mute">{domain}</p>
       </div>
       <dl className="space-y-2.5 text-[13px]">
-        <Fact label="Type" value={identity.typeLabel} />
+        <Fact label="Type" value={node?.isFirstParty && !node.isOrigin ? "First party" : identity.typeLabel} />
+        <Fact
+          label="Classification"
+          value={classificationLabel(classificationSource, classificationConfidence)}
+        />
         <Fact label="Owned by" value={identity.owner ?? "Unlisted"} />
         {siteCount !== undefined && row ? (
           <Fact label="Found on" value={seenOnShare(row.seenOnCount, siteCount)} />

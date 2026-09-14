@@ -5,6 +5,7 @@ import { runAudit, requestAuditCancellation } from "@/src/audit/runner";
 import { openDashboard, scanActiveTab, watchActiveTab } from "@/src/extension/scanFlow";
 import { blockDomain } from "@/src/extension/block";
 import type { ScanProgressUpdate } from "@/src/extension/scanProgress";
+import { maybeNotifyWeeklyDigest } from "@/src/storage/alerts";
 import { registrableDomain } from "@/src/lib/domain";
 import { toggleFollowDomain } from "@/src/storage/follows";
 import { getBillingStatus, openProCheckout, openProLogin, startBillingBackground } from "@/src/billing/extpay";
@@ -94,7 +95,7 @@ export default defineBackground(() => {
   browser.commands.onCommand.addListener((command) => {
     if (command !== "scan-active-tab") return;
     void getBillingStatus()
-      .then((billing) => scanActiveTab({ unlimitedHistory: billing.paid }))
+      .then((billing) => scanActiveTab({ extendedHistory: billing.paid }))
       .catch((error: unknown) => {
         console.error(error instanceof Error ? error.message : "Scan failed");
       });
@@ -142,13 +143,15 @@ export default defineBackground(() => {
   }
 
   browser.alarms.onAlarm.addListener((alarm) => {
-    if (alarm.name === WATCHED_SITE_ALARM) void runDueWatchedSites();
+    if (alarm.name === WATCHED_SITE_ALARM) {
+      void runDueWatchedSites().then(() => maybeNotifyWeeklyDigest());
+    }
   });
 
   browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "SCAN_ACTIVE_TAB") {
       void getBillingStatus()
-        .then((billing) => scanActiveTab({ unlimitedHistory: billing.paid, onProgress: progressReporter(message.requestId) }))
+        .then((billing) => scanActiveTab({ extendedHistory: billing.paid, onProgress: progressReporter(message.requestId) }))
         .then((scanId) => sendResponse({ ok: true, scanId }))
         .catch((error: unknown) =>
           sendResponse({
@@ -169,7 +172,7 @@ export default defineBackground(() => {
           url,
           notifyIfNew: false,
           force: true,
-          unlimitedHistory: billing.paid,
+          extendedHistory: billing.paid,
           onProgress: progressReporter(message.requestId),
         }))
         .then((scanId) => sendResponse({ ok: true, scanId }))

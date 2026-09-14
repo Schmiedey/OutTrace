@@ -1,5 +1,10 @@
 import { describeDomain } from "@/src/analysis/categorizer";
-import { CATEGORY_LABELS, type DomainCategory } from "@/src/types/graph";
+import {
+  CATEGORY_LABELS,
+  type ClassificationConfidence,
+  type ClassificationSource,
+  type DomainCategory,
+} from "@/src/types/graph";
 
 export type DomainRisk = "low" | "medium" | "high";
 
@@ -10,6 +15,8 @@ export type DomainIdentity = {
   typeLabel: string;
   owner?: string;
   listed: boolean;
+  classificationSource: ClassificationSource;
+  classificationConfidence: ClassificationConfidence;
   risk: DomainRisk;
   usedFor: string;
 };
@@ -134,9 +141,28 @@ export function identifyDomain(domain: string): DomainIdentity {
     typeLabel: CATEGORY_LABELS[category],
     owner: listed.owner,
     listed: listed.listed,
+    classificationSource: listed.source,
+    classificationConfidence: listed.confidence,
     risk: riskForCategory(category),
     usedFor: USED_FOR[category],
   };
+}
+
+export function classificationLabel(
+  source: ClassificationSource,
+  confidence: ClassificationConfidence,
+): string {
+  const sourceLabel =
+    source === "disconnect-list"
+      ? "Disconnect list"
+      : source === "curated-list"
+        ? "LinkScope list"
+        : source === "heuristic"
+          ? "Domain-name heuristic"
+          : source === "first-party"
+            ? "First-party match"
+            : "No matching source";
+  return `${confidence[0]?.toUpperCase() ?? ""}${confidence.slice(1)} confidence · ${sourceLabel}`;
 }
 
 export function seenOnShare(seenOnCount: number, siteCount: number): string {
