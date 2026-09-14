@@ -50,8 +50,8 @@ export async function runWatchedSite(site: WatchedSiteRow): Promise<number> {
       openReport: false,
       notifyIfNew: false,
       force: true,
-      captureMode: "scheduled",
-      watchedSite: true,
+      captureMode: billing.paid ? "scheduled" : "snapshot",
+      watchedSite: billing.paid,
       unlimitedHistory: billing.paid,
       allFrames: billing.paid,
     });
@@ -68,6 +68,9 @@ export async function runWatchedSite(site: WatchedSiteRow): Promise<number> {
 }
 
 export async function runDueWatchedSites(): Promise<void> {
+  // A free account may keep one baseline site and check it manually, but only
+  // Pro accounts receive scheduled background re-scans and change alerts.
+  if (!(await getBillingStatus()).paid) return;
   const due = await listDueWatchedSites();
   for (const site of due) {
     await runWatchedSite(site).catch((error: unknown) => {

@@ -50,7 +50,7 @@ export function FollowingPage() {
       const origin = new URL(target.url).origin;
       const origins = isPro ? ["*://*/*"] : [`${origin}/*`];
       const granted = await browser.permissions.request({ origins });
-      if (!granted) throw new Error("Site access is required for scheduled checks.");
+      if (!granted) throw new Error("Site access is required for the first check.");
       const response = (await browser.runtime.sendMessage({ type: "ADD_WATCHED_SITE", url: target.url, schedule })) as WatchedSitesResponse;
       if (!response.ok) throw new Error(response.error ?? "Could not add watched site.");
       setUrl("");
@@ -100,12 +100,12 @@ export function FollowingPage() {
       <section className="mt-8 rounded-md border border-line bg-panel p-5">
         <div className="grid gap-3 sm:grid-cols-[1fr_120px_auto]">
           <input type="url" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://example.com" aria-label="Website to watch" className="h-10 rounded-md border border-line bg-canvas px-3 text-[13px] outline-none focus:border-ink" />
-          <select value={schedule} onChange={(event) => setSchedule(event.target.value as WatchedSiteSchedule)} className="h-10 rounded-md border border-line bg-canvas px-3 text-[13px]">
+          <select value={schedule} disabled={!isPro} onChange={(event) => setSchedule(event.target.value as WatchedSiteSchedule)} className="h-10 rounded-md border border-line bg-canvas px-3 text-[13px] disabled:cursor-not-allowed disabled:opacity-60">
             <option value="daily">Daily</option><option value="weekly">Weekly</option>
           </select>
           <Button disabled={!url.trim() || busy === "add"} onClick={() => void add()}>{busy === "add" ? "Adding & checking…" : "Add site"}</Button>
         </div>
-        <p className="mt-3 text-[12px] text-mute">Free includes one watched site. Pro removes the limit and uses deep iframe scanning.</p>
+        <p className="mt-3 text-[12px] text-mute">Free includes one manual baseline site. Pro adds scheduled checks, alerts, unlimited sites, and deep iframe scanning.</p>
       </section>
 
       {error ? <p className="mt-4 text-[13px] text-rose">{error}</p> : null}
@@ -114,9 +114,9 @@ export function FollowingPage() {
           <ul className="divide-y divide-line border-y border-line">
             {sites.map((site) => (
               <li key={site.domain} className="flex flex-wrap items-center justify-between gap-4 py-4">
-                <div className="min-w-0"><p className="text-[15px] text-ink">{site.domain}</p><p className="mt-1 text-[12px] text-mute">{site.lastRunAt ? `Last checked ${formatRelativeTime(site.lastRunAt, now)}` : "Not checked yet"}{site.lastError ? ` · ${site.lastError}` : ` · next ${formatNextRun(site.nextRunAt, now)}`}</p></div>
+                <div className="min-w-0"><p className="text-[15px] text-ink">{site.domain}</p><p className="mt-1 text-[12px] text-mute">{site.lastRunAt ? `Last checked ${formatRelativeTime(site.lastRunAt, now)}` : "Not checked yet"}{site.lastError ? ` · ${site.lastError}` : isPro ? ` · next ${formatNextRun(site.nextRunAt, now)}` : " · background checks · Pro"}</p></div>
                 <div className="flex items-center gap-2">
-                  <select value={site.schedule} disabled={busy === site.domain} onChange={(event) => void action(site.domain, "schedule", event.target.value as WatchedSiteSchedule)} className="h-8 rounded-md border border-line bg-canvas px-2 text-[12px]" aria-label={`Schedule for ${site.domain}`}><option value="daily">Daily</option><option value="weekly">Weekly</option></select>
+                  <select value={site.schedule} disabled={!isPro || busy === site.domain} onChange={(event) => void action(site.domain, "schedule", event.target.value as WatchedSiteSchedule)} className="h-8 rounded-md border border-line bg-canvas px-2 text-[12px] disabled:cursor-not-allowed disabled:opacity-60" aria-label={`Schedule for ${site.domain}`}><option value="daily">Daily</option><option value="weekly">Weekly</option></select>
                   {site.lastScanId ? <Link className="text-[12px] underline" to={`/graph/${String(site.lastScanId)}`}>Latest</Link> : null}
                   <Button size="sm" variant="ghost" disabled={busy === site.domain} onClick={() => void action(site.domain, "run")}>Check now</Button>
                   <Button size="sm" variant="ghost" disabled={busy === site.domain} onClick={() => void action(site.domain, "remove")}>Remove</Button>

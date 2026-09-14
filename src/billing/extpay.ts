@@ -25,6 +25,12 @@ export function isBillingSandbox(): boolean {
   return !manifest.update_url;
 }
 
+function cacheDurationMs(): number {
+  // Test purchases should be reflected as soon as the ExtensionPay success page
+  // returns to the extension instead of waiting on the production cache window.
+  return isBillingSandbox() ? 0 : BILLING_CACHE_MS;
+}
+
 async function cacheStatus(status: BillingStatus): Promise<BillingStatus> {
   await browser.storage.local.set({ [BILLING_CACHE_KEY]: status });
   return status;
@@ -50,7 +56,7 @@ export async function getBillingStatus(force = false): Promise<BillingStatus> {
   if (!force) {
     const cached = await browser.storage.local.get(BILLING_CACHE_KEY);
     const value = cached[BILLING_CACHE_KEY] as BillingStatus | undefined;
-    if (value && Date.now() - value.checkedAt < BILLING_CACHE_MS) return value;
+    if (value && Date.now() - value.checkedAt < cacheDurationMs()) return value;
   }
 
   try {
@@ -83,10 +89,12 @@ export async function getBillingStatus(force = false): Promise<BillingStatus> {
 
 export async function openProCheckout(): Promise<void> {
   if (!configuredExtensionPayId) throw new Error("Set WXT_EXTPAY_EXTENSION_ID before opening checkout.");
+  await browser.storage.local.remove(BILLING_CACHE_KEY);
   await extpay.openPaymentPage();
 }
 
 export async function openProLogin(): Promise<void> {
   if (!configuredExtensionPayId) throw new Error("Set WXT_EXTPAY_EXTENSION_ID before opening billing login.");
+  await browser.storage.local.remove(BILLING_CACHE_KEY);
   await extpay.openLoginPage();
 }

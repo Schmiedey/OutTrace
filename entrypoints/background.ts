@@ -307,7 +307,11 @@ export default defineBackground(() => {
     if (message?.type === "UPDATE_WATCHED_SITE") {
       const domain = typeof message.domain === "string" ? message.domain : "";
       const schedule: WatchedSiteSchedule = message.schedule === "weekly" ? "weekly" : "daily";
-      void updateWatchedSiteSchedule(domain, schedule)
+      void getBillingStatus()
+        .then((billing) => {
+          if (!billing.paid) throw new Error("Scheduled background checks require LinkScope Pro.");
+          return updateWatchedSiteSchedule(domain, schedule);
+        })
         .then(() => sendResponse({ ok: true }))
         .catch((error: unknown) =>
           sendResponse({ ok: false, error: error instanceof Error ? error.message : "Could not update schedule" }),

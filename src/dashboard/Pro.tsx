@@ -7,10 +7,14 @@ export function ProPage() {
   const billing = useAsync(() => billingStatus(), []);
   const [busy, setBusy] = useState<"checkout" | "login" | "refresh" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [checkoutOpened, setCheckoutOpened] = useState(false);
   const run = async (action: "checkout" | "login" | "refresh"): Promise<void> => {
     setBusy(action); setError(null);
     try {
-      if (action === "checkout") await launchCheckout(); else if (action === "login") await launchLogin(); else await billingStatus(true);
+      if (action === "checkout") {
+        await launchCheckout();
+        setCheckoutOpened(true);
+      } else if (action === "login") await launchLogin(); else await billingStatus(true);
       billing.reload();
     } catch (err) { setError(err instanceof Error ? err.message : "Could not open billing."); }
     finally { setBusy(null); }
@@ -21,7 +25,7 @@ export function ProPage() {
     <h1 className="font-display mt-3 text-5xl">Keep watch, even when you’re away.</h1>
     <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-mute">Scheduled checks run in your own browser. Your scan data stays on this device; ExtensionPay handles account and payment status.</p>
     <div className="mt-10 grid gap-4 md:grid-cols-2"><Plan name="Free" price="$0" items={["Unlimited manual page scans", "Full graph and privacy score", "One watched site", "Last 20 scans"]} /><Plan name="Pro" price="$8 / month" items={["Unlimited watched sites", "Daily or weekly background checks", "Change alerts and diffs", "Deep iframe scanning", "Unlimited history and export"]} highlighted /></div>
-    <section className="mt-8 rounded-md border border-line p-5"><p className="text-[14px] font-medium">{status?.paid ? "Pro is active" : status?.configured === false ? "Connect ExtensionPay to enable checkout" : status?.subscriptionStatus === "past_due" ? "Payment needs attention" : "Free plan"}</p><p className="mt-1 text-[12px] text-mute">{status?.sandbox ? "This unpacked build uses ExtensionPay’s development flow and Stripe test cards. Store builds use live checkout." : "Subscription state is verified through ExtensionPay."}</p>{error || status?.error ? <p className="mt-3 text-[12px] text-rose">{error ?? status?.error}</p> : null}<div className="mt-4 flex flex-wrap gap-2">{!status?.paid ? <Button disabled={Boolean(busy) || status?.configured === false} onClick={() => void run("checkout")}>{busy === "checkout" ? "Opening…" : "Upgrade with Stripe"}</Button> : null}<Button variant="ghost" disabled={Boolean(busy) || status?.configured === false} onClick={() => void run("login")}>{busy === "login" ? "Opening…" : status?.paid ? "Manage subscription" : "Restore purchase"}</Button><Button variant="ghost" disabled={Boolean(busy)} onClick={() => void run("refresh")}>{busy === "refresh" ? "Checking…" : "Refresh status"}</Button></div></section>
+    <section className="mt-8 rounded-md border border-line p-5"><p className="text-[14px] font-medium">{status?.paid ? "Pro is active" : status?.configured === false ? "Connect ExtensionPay to enable checkout" : status?.subscriptionStatus === "past_due" ? "Payment needs attention" : "Free plan"}</p><p className="mt-1 text-[12px] text-mute">{status?.sandbox ? "This unpacked build uses ExtensionPay’s development flow and Stripe test cards. Store builds use live checkout." : "Subscription state is verified through ExtensionPay."}</p>{checkoutOpened && !status?.paid ? <p className="mt-3 text-[12px] text-lime">Checkout opened in a new tab. Complete the test payment, return here, then refresh your status.</p> : null}{error || status?.error ? <p className="mt-3 text-[12px] text-rose">{error ?? status?.error}</p> : null}<div className="mt-4 flex flex-wrap gap-2">{!status?.paid ? <Button disabled={Boolean(busy) || status?.configured === false} onClick={() => void run("checkout")}>{busy === "checkout" ? "Opening…" : status?.sandbox ? "Open test checkout" : "Upgrade with Stripe"}</Button> : null}<Button variant="ghost" disabled={Boolean(busy) || status?.configured === false} onClick={() => void run("login")}>{busy === "login" ? "Opening…" : status?.paid ? "Manage subscription" : "Restore purchase"}</Button><Button variant="ghost" disabled={Boolean(busy)} onClick={() => void run("refresh")}>{busy === "refresh" ? "Checking…" : "Refresh status"}</Button></div></section>
   </div>;
 }
 

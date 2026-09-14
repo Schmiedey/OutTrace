@@ -1,5 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { isTrackerCategory } from "@/src/analysis/categorizer";
+import { billingStatus } from "@/src/billing/client";
 import { gradeFromScore } from "@/src/analysis/score";
 import { ownerGroupsForAudit } from "@/src/audit/aggregate";
 import { PrivacyScoreMark } from "@/src/components/PrivacyScoreMark";
@@ -15,6 +16,7 @@ export function AuditReportPage() {
   const audit = useAsync(() => getAudit(auditId), [auditId]);
   const pages = useAsync(() => listAuditPages(auditId), [auditId]);
   const domains = useAsync(() => listAuditDomains(auditId), [auditId]);
+  const billing = useAsync(() => billingStatus(), []);
 
   if (!Number.isFinite(auditId)) return <p className="px-10 py-10 text-mute">Invalid audit.</p>;
   if (audit.loading || pages.loading || domains.loading) return <p className="px-10 py-10 text-mute">Building audit report…</p>;
@@ -45,8 +47,10 @@ export function AuditReportPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           {row.previousAuditId !== undefined ? <Link className="inline-flex h-9 items-center rounded-md border border-line px-3.5 text-[13px]" to={`/audits/compare/${String(row.previousAuditId)}/${String(auditId)}`}>Compare audit</Link> : null}
-          <Button variant="ghost" onClick={() => exportAuditCsv(row, domainRows)}>Export CSV</Button>
-          <Button variant="ghost" onClick={() => exportAuditJson(row, pageRows, domainRows)}>Export JSON</Button>
+          {billing.data?.paid ? <>
+            <Button variant="ghost" onClick={() => exportAuditCsv(row, domainRows)}>Export CSV</Button>
+            <Button variant="ghost" onClick={() => exportAuditJson(row, pageRows, domainRows)}>Export JSON</Button>
+          </> : <Link className="inline-flex h-9 items-center rounded-md border border-line px-3.5 text-[13px]" to="/pro">Export · Pro</Link>}
         </div>
       </header>
 
