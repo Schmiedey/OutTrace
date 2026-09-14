@@ -13,8 +13,10 @@ export type BillingStatus = {
 
 const BILLING_CACHE_KEY = "linkscope-billing-status";
 const BILLING_CACHE_MS = 5 * 60 * 1000;
-const configuredExtensionPayId = import.meta.env.WXT_EXTPAY_EXTENSION_ID;
-const extensionPayId = configuredExtensionPayId || "linkscope";
+// The product slug is public configuration. Keep the env override for forks,
+// but make the published LinkScope build work from a clean clone as well.
+const extensionPayId = import.meta.env.WXT_EXTPAY_EXTENSION_ID || "linkscope";
+const configuredExtensionPayId = extensionPayId;
 const extpay = ExtPay(extensionPayId);
 let started = false;
 
