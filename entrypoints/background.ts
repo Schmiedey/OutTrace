@@ -1,5 +1,6 @@
 import { applyBadgeForUrl, refreshActiveTabBadge } from "@/src/extension/badge";
 import { canScanUrl } from "@/src/extension/permissions";
+import { AUTO_SCAN_DWELL_MS, shouldAutomaticallyScan } from "@/src/extension/autoProtect";
 import { installRequestCapture } from "@/src/extension/requestLog";
 import { runAudit, requestAuditCancellation } from "@/src/audit/runner";
 import { openDashboard, scanActiveTab, watchActiveTab } from "@/src/extension/scanFlow";
@@ -28,6 +29,47 @@ type AuditTarget = {
 
 let recentAuditTarget: AuditTarget | null = null;
 const runningAudits = new Map<number, Promise<void>>();
+const automaticScanTimers = new Map<number, ReturnType<typeof setTimeout>>();
+const automaticScansInFlight = new Set<string>();
+
+function cancelAutomaticScan(tabId: number): void {
+  const timer = automaticScanTimers.get(tabId);
+  if (timer) clearTimeout(timer);
+  automaticScanTimers.delete(tabId);
+}
+
+function scheduleAutomaticScan(tabId: number, url: string | undefined): void {
+  cancelAutomaticScan(tabId);
+  if (!url || !canScanUrl(url)) return;
+  const timer = setTimeout(() => {
+    automaticScanTimers.delete(tabId);
+    void (async () => {
+      const current = await browser.tabs.get(tabId);
+      if (!current.active || current.url !== url) return;
+      const hasAccess = await browser.permissions.contains({ origins: ["*://*/*"] });
+      if (!hasAccess || !(await shouldAutomaticallyScan(url))) return;
+      const domain = registrableDomain(url) ?? new URL(url).hostname;
+      if (automaticScansInFlight.has(domain)) return;
+      automaticScansInFlight.add(domain);
+      try {
+        const billing = await getBillingStatus();
+        await scanActiveTab({
+          tabId,
+          url,
+          openReport: false,
+          notifyIfNew: false,
+          captureMode: "automatic",
+          extendedHistory: billing.paid,
+        });
+      } finally {
+        automaticScansInFlight.delete(domain);
+      }
+    })().catch((error: unknown) => {
+      console.error(error instanceof Error ? error.message : "Automatic protection check failed");
+    });
+  }, AUTO_SCAN_DWELL_MS);
+  automaticScanTimers.set(tabId, timer);
+}
 
 function auditTargetFromTab(tab: { id?: number; url?: string }): AuditTarget | null {
   if (tab.id === undefined || !tab.url || !canScanUrl(tab.url)) return null;
@@ -107,7 +149,10 @@ export default defineBackground(() => {
       void rememberAuditTarget(info.tabId);
       void browser.tabs
         .get(info.tabId)
-        .then((tab) => applyBadgeForUrl(tab.url))
+        .then((tab) => {
+          void applyBadgeForUrl(tab.url);
+          if (tab.status === "complete") scheduleAutomaticScan(info.tabId, tab.url);
+        })
         .catch(() => undefined);
     });
   }
@@ -118,7 +163,11 @@ export default defineBackground(() => {
       if (target) recentAuditTarget = target;
       if (changeInfo.status !== "complete" && !changeInfo.url) return;
       void applyBadgeForUrl(tab.url);
+      if (changeInfo.status === "complete") scheduleAutomaticScan(_tabId, tab.url);
     });
+  }
+  if (browser.tabs?.onRemoved) {
+    browser.tabs.onRemoved.addListener((tabId) => cancelAutomaticScan(tabId));
   }
 
   if (browser.notifications?.onClicked) {

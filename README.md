@@ -2,7 +2,7 @@
 
 Local-first Chrome extension that reads pages, shows who else is on them, and maps connected domains as a graph.
 
-Manual scans stay free and run when you open LinkScope. Sites explicitly added to **Watching** can be revisited daily or weekly by the browser. Scan contents stay local. ExtensionPay handles the account and subscription status for Pro through Stripe.
+Manual scans stay free and run when you open LinkScope. Optional **Automatic protection** checks a site after you stay on it for a few seconds, at most twice per day per site. Sites explicitly added to **Watching** can also be revisited daily or weekly by the browser. Scan contents stay local. ExtensionPay handles the account and subscription status for Pro through Stripe.
 
 ## Load unpacked
 
@@ -16,10 +16,11 @@ Manual scans stay free and run when you open LinkScope. Sites explicitly added t
 ## Use it
 
 1. Open any `http`/`https` website
-2. Click the LinkScope icon — that click is the scan
-3. The popup shows third-party / tracker / ad / unknown counts, and what changed since last visit
+2. Click the LinkScope icon — that click is the first scan, and the popup offers optional automatic protection
+3. The popup starts with a plain-language verdict and privacy score, followed by third-party / tracker / ad / unknown counts and recent changes
 4. Click a domain for a load chain (page → iframe or script → domain) and watch/block actions
-5. Press **Inspect** for the full graph, or **Watch 15 seconds** to catch delayed requests
+5. Press **See what’s connected** for the full graph, or **Deep scan** to catch delayed requests
+6. The Overview becomes a daily briefing and weekly privacy trend as checks accumulate
 
 ## Pro billing and Stripe sandbox
 
@@ -49,7 +50,7 @@ The toolbar badge shows the third-party count, or `+N` new domains since last vi
 - `webRequest` — while a scan/watch is running, record initiator/document URLs for that tab
 - `notifications` — optional local alerts for watched-site changes or tracked domains
 - `declarativeNetRequest` — only if you click **Block this domain**; the resulting dynamic rule persists across browser restarts
-- Optional host access — requested per site for Free watched sites and standard audits. Pro asks for all-site access only when deep iframe scanning is enabled, because embedded frames can use unrelated origins. Blocking also requests access when used.
+- Optional host access — requested per site for Free watched sites and standard audits. Automatic protection asks for all-site access when the user turns it on; it remains off by default. Pro also uses all-site access for deep iframe scanning, because embedded frames can use unrelated origins. Blocking requests access only when used.
 
 No required host permissions. Pages are not injected at `document_start`.
 

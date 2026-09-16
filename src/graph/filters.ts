@@ -5,7 +5,9 @@ import { CONNECTION_TYPES, INFRA_CATEGORIES, TRACKER_CATEGORIES } from "@/src/ty
 export function defaultEnabledTypes(): Record<ConnectionType, boolean> {
   const enabled = {} as Record<ConnectionType, boolean>;
   for (const type of CONNECTION_TYPES) {
-    enabled[type] = type !== "link" && type !== "other";
+    // Show the complete map on first open. Hiding links/other by default made
+    // small scans look empty when their only connections used those types.
+    enabled[type] = true;
   }
   return enabled;
 }

@@ -1,11 +1,17 @@
 import { diffSnapshots } from "@/src/analysis/diff";
 import { db } from "@/src/storage/database";
-import { notificationsEnabled } from "@/src/storage/settings";
+import {
+  alertSensitivity,
+  digestFrequency,
+  listIgnoredDomains,
+  notificationsEnabled,
+} from "@/src/storage/settings";
 import type { AlertRow, ScanGraphSnapshot, ScanRow } from "@/src/types/graph";
 
 const SURGE_MIN_ADDED = 2;
 const SURGE_RATIO = 1.25;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 const LAST_DIGEST_KEY = "weekly-digest-at";
 
 /** Trackers jumped by ≥2 and grew ≥25%, or first appeared on a tracker-free site. */
@@ -36,11 +42,13 @@ export async function markAlertsRead(): Promise<void> {
 export async function maybeNotifyWeeklyDigest(now = Date.now()): Promise<void> {
   if (typeof browser === "undefined" || !browser.notifications?.create) return;
   if (!(await notificationsEnabled())) return;
+  const frequency = await digestFrequency();
+  const interval = frequency === "daily" ? DAY_MS : WEEK_MS;
   const previous = await db.settings.get(LAST_DIGEST_KEY);
   const lastSent = Number(previous?.value ?? 0);
-  if (Number.isFinite(lastSent) && lastSent > 0 && now - lastSent < WEEK_MS) return;
+  if (Number.isFinite(lastSent) && lastSent > 0 && now - lastSent < interval) return;
 
-  const since = lastSent > 0 ? lastSent : now - WEEK_MS;
+  const since = lastSent > 0 ? lastSent : now - interval;
   const alerts = await db.alerts.where("timestamp").above(since).toArray();
   const changedSites = new Set(alerts.map((alert) => alert.siteDomain));
   await db.settings.put({ key: LAST_DIGEST_KEY, value: String(now) });
@@ -48,10 +56,10 @@ export async function maybeNotifyWeeklyDigest(now = Date.now()): Promise<void> {
 
   const count = changedSites.size;
   try {
-    await browser.notifications.create(`linkscope-weekly-${String(Math.floor(now / WEEK_MS))}`, {
+    await browser.notifications.create(`linkscope-digest-${String(Math.floor(now / interval))}`, {
       type: "basic",
       iconUrl: notificationIconUrl(),
-      title: "Your LinkScope week",
+      title: frequency === "daily" ? "Your LinkScope day" : "Your LinkScope week",
       message: `${String(count)} watched ${count === 1 ? "site changed" : "sites changed"}.`,
     });
   } catch {
@@ -70,10 +78,20 @@ export async function recordScanAlert(
 
   const diff = diffSnapshots(previous, next, previousGraph, nextGraph);
   const delta = next.trackerCount - previous.trackerCount;
-  const addedDomains = diff.added.filter((node) => !node.isFirstParty).map((node) => node.domain);
-  const removedDomains = diff.removed.filter((node) => !node.isFirstParty).map((node) => node.domain);
+  const ignored = new Set(await listIgnoredDomains());
+  const addedDomains = diff.added
+    .filter((node) => !node.isFirstParty && !ignored.has(node.domain))
+    .map((node) => node.domain);
+  const removedDomains = diff.removed
+    .filter((node) => !node.isFirstParty && !ignored.has(node.domain))
+    .map((node) => node.domain);
+  const addedTrackers = diff.addedTrackers.filter((node) => !ignored.has(node.domain)).map((node) => node.domain);
+  const removedTrackers = diff.removedTrackers.filter((node) => !ignored.has(node.domain)).map((node) => node.domain);
   const changedWatchedSite = addedDomains.length > 0 || removedDomains.length > 0;
-  if (!changedWatchedSite && !isTrackerSurge(previous.trackerCount, next.trackerCount)) return null;
+  const surge = isTrackerSurge(previous.trackerCount, next.trackerCount);
+  const sensitivity = await alertSensitivity();
+  const important = addedTrackers.length > 0 || surge;
+  if ((!changedWatchedSite && !surge) || (sensitivity === "important" && !important)) return null;
 
   const alert: AlertRow = {
     siteId: next.siteId,
@@ -86,8 +104,8 @@ export async function recordScanAlert(
       : previous.trackerCount === 0
         ? "new-trackers"
         : "tracker-surge",
-    addedTrackers: diff.addedTrackers.map((node) => node.domain),
-    removedTrackers: diff.removedTrackers.map((node) => node.domain),
+    addedTrackers,
+    removedTrackers,
     addedDomains,
     removedDomains,
     trackerDelta: delta,
@@ -97,7 +115,27 @@ export async function recordScanAlert(
   const id = await db.alerts.add(alert);
   const stored = { ...alert, id };
   await syncAlertBadge();
+  await notifyScanAlert(stored);
   return stored;
+}
+
+async function notifyScanAlert(alert: AlertRow): Promise<void> {
+  if (typeof browser === "undefined" || !browser.notifications?.create) return;
+  if (!(await notificationsEnabled())) return;
+  const added = alert.addedTrackers.length;
+  const message = added > 0
+    ? `${String(added)} new ${added === 1 ? "tracker" : "trackers"}: ${alert.addedTrackers.slice(0, 3).join(", ")}`
+    : `${String(alert.addedDomains?.length ?? 0)} added · ${String(alert.removedDomains?.length ?? 0)} removed`;
+  try {
+    await browser.notifications.create(`linkscope-diff-${String(alert.fromScanId)}-${String(alert.toScanId)}`, {
+      type: "basic",
+      iconUrl: notificationIconUrl(),
+      title: `${alert.siteDomain} changed`,
+      message,
+    });
+  } catch {
+    // Notifications can be blocked even with the permission present.
+  }
 }
 
 export async function syncAlertBadge(_count?: number): Promise<void> {

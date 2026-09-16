@@ -16,6 +16,13 @@ import { getSiteGlance, type SiteGlance } from "@/src/storage/glance";
 import type { DomainRow } from "@/src/types/graph";
 import { billingStatus } from "@/src/billing/client";
 import { useAsync } from "@/src/lib/useAsync";
+import { automaticProtectionEnabled, setAutomaticProtectionEnabled } from "@/src/storage/settings";
+
+function verdict(grade: "A" | "B" | "C" | "D" | "F"): { label: string; className: string } {
+  if (grade === "A" || grade === "B") return { label: "Looks okay", className: "text-lime" };
+  if (grade === "C") return { label: "Worth a look", className: "text-amber" };
+  return { label: "Needs attention", className: "text-rose" };
+}
 
 export function PopupApp() {
   const [host, setHost] = useState("—");
@@ -28,6 +35,7 @@ export function PopupApp() {
   const [followed, setFollowed] = useState(false);
   const scanProgress = useScanProgress();
   const billing = useAsync(() => billingStatus(), []);
+  const automatic = useAsync(() => automaticProtectionEnabled(), []);
   const now = Date.now();
 
   const load = async (domain: string): Promise<SiteGlance | null> => {
@@ -129,11 +137,32 @@ export function PopupApp() {
     }
   };
 
+  const toggleAutomatic = async (): Promise<void> => {
+    const next = !(automatic.data ?? false);
+    if (next) {
+      const granted = await browser.permissions.request({ origins: ["*://*/*"] });
+      if (!granted) {
+        setError("Automatic protection needs permission to check the websites you visit.");
+        return;
+      }
+    }
+    await setAutomaticProtectionEnabled(next);
+    automatic.reload();
+  };
+
+  const siteVerdict = nutrition ? verdict(nutrition.privacy) : null;
+
   return (
     <div className="flex min-h-[320px] w-[360px] flex-col bg-canvas px-4 py-4 text-ink">
       <div className="flex items-baseline justify-between gap-3">
         <p className="text-[11px] tracking-[0.14em] text-mute uppercase">LinkScope</p>
-        {checking ? <p className="text-[11px] text-mute">Auditing live</p> : null}
+        {checking ? (
+          <p className="text-[11px] text-mute">Checking now</p>
+        ) : (
+          <button type="button" className="text-[11px] text-mute hover:text-ink" onClick={() => void toggleAutomatic()}>
+            {(automatic.data ?? false) ? "Protection on" : "Protection off"}
+          </button>
+        )}
       </div>
       <h1 className="font-display mt-1.5 break-all text-[26px] leading-tight">{host}</h1>
 
@@ -165,7 +194,16 @@ export function PopupApp() {
         </div>
       ) : nutrition ? (
         <div className="mt-3">
-          <p className="text-[15px] font-medium text-ink">{countsSentence(nutrition.counts)}</p>
+          <section className="rounded-md border border-line bg-panel px-4 py-4">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className={`text-[18px] font-medium ${siteVerdict?.className ?? "text-ink"}`}>{siteVerdict?.label}</p>
+                <p className="mt-1 text-[12px] text-mute">Privacy score {String(nutrition.privacyScore)}/100</p>
+              </div>
+              <p className={`font-display text-5xl leading-none ${siteVerdict?.className ?? "text-ink"}`}>{nutrition.privacy}</p>
+            </div>
+          </section>
+          <p className="mt-3 text-[13px] font-medium text-ink">{countsSentence(nutrition.counts)}</p>
           <div className="mt-3">
             <NutritionLabel nutrition={nutrition} compact />
           </div>
@@ -215,8 +253,13 @@ export function PopupApp() {
 
       {!selected ? (
         <div className="mt-4 flex flex-col gap-2">
-          <Button className="w-full" disabled={checking || Boolean(blocked)} onClick={inspect}>
-            Inspect
+          {!(automatic.data ?? false) ? (
+            <Button className="w-full" disabled={checking || Boolean(blocked)} onClick={() => void toggleAutomatic()}>
+              Protect sites automatically
+            </Button>
+          ) : null}
+          <Button variant={(automatic.data ?? false) ? "primary" : "ghost"} className="w-full" disabled={checking || Boolean(blocked)} onClick={inspect}>
+            See what’s connected
           </Button>
           <Button variant="ghost" className="w-full" disabled={checking || Boolean(blocked)} onClick={() => void runWatch()}>
             {billing.data?.paid ? "Deep scan · 15 seconds" : "Deep scan · Pro"}

@@ -1,6 +1,6 @@
 import cytoscape, { type Core, type Css, type ElementDefinition, type LayoutOptions } from "cytoscape";
 import fcose from "cytoscape-fcose";
-import { memo, useEffect, useMemo, useRef } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { EDGE_COLORS, VIZ_CATEGORY_COLORS } from "@/src/graph/colors";
 import { filterSnapshot, matchesSearch, neighborIds } from "@/src/graph/filters";
 import type { GraphLayoutMode } from "@/src/graph/layouts";
@@ -99,7 +99,10 @@ function buildElements(snapshot: ScanGraphSnapshot, nodes: ScanGraphSnapshot["no
       label: node.domain,
       color: VIZ_CATEGORY_COLORS[node.category],
       size: node.isOrigin ? 36 : Math.max(16, Math.min(28, 14 + Math.log2(node.referenceCount + 1) * 4)),
-      rank: node.isOrigin || node.domain === origin ? 100 : 1,
+      // Concentric layouts treat each numeric rank as a ring. Keep the origin
+      // one ring outside its connections; a large sentinel (100) creates
+      // dozens of empty rings and fits the real nodes off-screen.
+      rank: node.isOrigin || node.domain === origin ? 2 : 1,
     },
     classes: node.isOrigin || node.domain === origin ? "origin" : node.category,
   }));
@@ -161,7 +164,6 @@ function runLayout(cy: Core, mode: GraphLayoutMode, origin: string): void {
     concentric: (node) => Number(node.data("rank") ?? 1),
     levelWidth: () => 1,
     startAngle: (3 * Math.PI) / 2,
-    sweep: Math.PI * 2,
     equidistant: false,
     ...shared,
   } as LayoutOptions).run();
@@ -274,7 +276,7 @@ export const GraphCanvas = memo(function GraphCanvas({ snapshot, onExplore, onCo
     return filtered.nodes.filter((node) => matchesSearch(node, query)).map((node) => node.domain);
   }, [filtered.edges, filtered.nodes, layoutMode, searchQuery, selectedNode, snapshot.originDomain]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
@@ -333,8 +335,18 @@ export const GraphCanvas = memo(function GraphCanvas({ snapshot, onExplore, onCo
     const observer = new ResizeObserver(() => {
       if (cancelled) return;
       cy.resize();
+      if (cy.elements().length > 0 && container.clientWidth > 0 && container.clientHeight > 0) {
+        cy.fit(undefined, 64);
+      }
     });
     observer.observe(container);
+    requestAnimationFrame(() => {
+      if (cancelled) return;
+      cy.resize();
+      if (cy.elements().length > 0 && container.clientWidth > 0 && container.clientHeight > 0) {
+        cy.fit(undefined, 64);
+      }
+    });
     const blockMenu = (event: Event): void => event.preventDefault();
     container.addEventListener("contextmenu", blockMenu);
 
@@ -378,11 +390,13 @@ export const GraphCanvas = memo(function GraphCanvas({ snapshot, onExplore, onCo
   }, [actives, selectedNode, showLabels]);
 
   return (
-    <div className="relative min-h-0 w-full flex-1">
-      <div ref={containerRef} className="graph-stage min-h-0 h-full w-full flex-1" />
+    <div className="relative h-full min-h-[240px] w-full flex-1">
+      <div ref={containerRef} className="graph-stage h-full min-h-[240px] w-full flex-1" />
       {filtered.nodes.length <= 1 ? (
         <p className="pointer-events-none absolute inset-0 flex items-center justify-center px-8 text-center text-[13px] text-mute">
-          Nothing third-party loaded into this page. Turn on Links or Site assets if you want outbound pages and first-party CDNs.
+          {filtered.nodes.length === 0
+            ? "No connections match these filters. Reset filters to show the full map."
+            : "Nothing third-party loaded into this page. Turn on Links or Site assets if you want outbound pages and first-party CDNs."}
         </p>
       ) : null}
     </div>

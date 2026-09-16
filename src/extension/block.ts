@@ -26,6 +26,18 @@ function ruleIdFor(domain: string): number {
   return (Math.abs(hash) % 900_000) + 100;
 }
 
+export async function isDomainBlocked(domain: string): Promise<boolean> {
+  if (!browser.declarativeNetRequest?.getDynamicRules) return false;
+  const id = ruleIdFor(domain.toLowerCase());
+  const rules = await browser.declarativeNetRequest.getDynamicRules();
+  return rules.some((rule) => rule.id === id);
+}
+
+export async function unblockDomain(domain: string): Promise<void> {
+  if (!browser.declarativeNetRequest?.updateDynamicRules) return;
+  await browser.declarativeNetRequest.updateDynamicRules({ removeRuleIds: [ruleIdFor(domain.toLowerCase())] });
+}
+
 function originsFor(domain: string): string[] {
   return [`*://${domain}/*`, `*://*.${domain}/*`];
 }

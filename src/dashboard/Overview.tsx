@@ -6,6 +6,7 @@ import { OwnerGroups } from "@/src/components/OwnerGroups";
 import { formatCount, formatRelativeTime } from "@/src/lib/utils";
 import { useAsync } from "@/src/lib/useAsync";
 import { listRecentAlerts } from "@/src/storage/alerts";
+import { getDailyBriefing, getWeeklyTrend } from "@/src/storage/briefing";
 import { getOverviewStats, listLatestGraphs, listRecentScans } from "@/src/storage/scans";
 
 export function OverviewPage() {
@@ -13,6 +14,8 @@ export function OverviewPage() {
   const stats = useAsync(() => getOverviewStats(), []);
   const scans = useAsync(() => listRecentScans(12), []);
   const alerts = useAsync(() => listRecentAlerts(8), []);
+  const briefing = useAsync(() => getDailyBriefing(), []);
+  const trend = useAsync(() => getWeeklyTrend(), []);
   const owners = useAsync(async () => {
     const graphs = await listLatestGraphs();
     return mergeOwnerGroups(graphs.map(groupSnapshotByOwner)).filter((group) => !group.unlisted).slice(0, 8);
@@ -34,6 +37,25 @@ export function OverviewPage() {
           </p>
         ) : null}
       </header>
+      {briefing.data ? (
+        <section className="mb-8 grid gap-px overflow-hidden rounded-md border border-line bg-line lg:grid-cols-[1.5fr_1fr]">
+          <div className="bg-canvas px-5 py-5">
+            <p className="text-[11px] tracking-[0.12em] text-mute uppercase">Today</p>
+            <h2 className={`font-display mt-2 text-3xl ${briefing.data.status === "attention" ? "text-rose" : briefing.data.status === "changed" ? "text-amber" : "text-ink"}`}>
+              {briefing.data.headline}
+            </h2>
+            <p className="mt-2 text-[13px] text-mute">{briefing.data.detail}</p>
+          </div>
+          <div className="bg-panel px-5 py-5">
+            <p className="text-[11px] tracking-[0.12em] text-mute uppercase">This week</p>
+            <p className="mt-2 text-[16px] font-medium text-ink">{trend.data?.headline ?? "Building your trend…"}</p>
+            <p className="mt-2 text-[12px] text-mute">
+              {String(trend.data?.sitesChecked ?? 0)} {trend.data?.sitesChecked === 1 ? "site" : "sites"} protected
+              {trend.data?.currentScore !== undefined ? ` · average ${String(trend.data.currentScore)}/100` : ""}
+            </p>
+          </div>
+        </section>
+      ) : null}
       <div className="mb-8">
         <AuditSiteCard />
       </div>
@@ -139,7 +161,7 @@ function EmptyState() {
     <div className="py-10">
       <p className="font-display text-2xl">No scans yet</p>
       <p className="mt-2 text-[13px] text-mute">
-        Open a website and click the LinkScope icon, or press Alt+Shift+L. Nothing is scanned until you do.
+        Open a website and click the LinkScope icon, or turn on automatic protection in Settings.
       </p>
     </div>
   );

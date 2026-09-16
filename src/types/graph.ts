@@ -97,7 +97,7 @@ export type SiteRow = {
   scanCount: number;
 };
 
-export type CaptureMode = "snapshot" | "watch" | "scheduled";
+export type CaptureMode = "snapshot" | "watch" | "scheduled" | "automatic";
 
 export type ScanRow = {
   id?: number;

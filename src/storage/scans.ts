@@ -35,7 +35,8 @@ export async function persistScan(raw: RawScanPayload, options: PersistScanOptio
   const previousGraph = previous?.id !== undefined ? await getScanGraph(previous.id) : undefined;
 
   const followed = new Set(await listFollowedDomains());
-  const watched = options.watchedSite ?? Boolean(await db.watchedSites.get(normalized.originDomain));
+  const watchedRow = await db.watchedSites.get(normalized.originDomain);
+  const watched = options.watchedSite ?? Boolean(watchedRow?.enabled);
   const newFollowHits: string[] = [];
 
   const scanId = await db.transaction("rw", db.sites, db.scans, db.scanGraphs, db.domains, db.sightings, async () => {
