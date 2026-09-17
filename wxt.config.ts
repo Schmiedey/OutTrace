@@ -12,7 +12,7 @@ export default defineConfig({
   manifest: {
     name: "LinkScope",
     description:
-      "See every site, service, tracker, script, and external domain a webpage connects to—visualized as an interactive graph.",
+      "Understand a page’s tracking exposure with a plain-English score, graph explanations, and private local scan history.",
     permissions: [
       "activeTab",
       "scripting",

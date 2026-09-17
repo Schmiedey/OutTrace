@@ -1,10 +1,25 @@
-import cytoscape, { type Core, type Css, type ElementDefinition, type LayoutOptions } from "cytoscape";
+import cytoscape, {
+  type Core,
+  type Css,
+  type ElementDefinition,
+  type LayoutOptions,
+} from "cytoscape";
 import fcose from "cytoscape-fcose";
 import { memo, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { EDGE_COLORS, VIZ_CATEGORY_COLORS } from "@/src/graph/colors";
-import { filterSnapshot, matchesSearch, neighborIds } from "@/src/graph/filters";
+import {
+  filterSnapshot,
+  matchesSearch,
+  neighborIds,
+} from "@/src/graph/filters";
 import type { GraphLayoutMode } from "@/src/graph/layouts";
-import { buildTreeElements, isSyntheticTreeId, runTreeLayout, treePathIds, TREE_STYLESHEET } from "@/src/graph/treeLayout";
+import {
+  buildTreeElements,
+  isSyntheticTreeId,
+  runTreeLayout,
+  treePathIds,
+  TREE_STYLESHEET,
+} from "@/src/graph/treeLayout";
 import { useGraphStore } from "@/src/graph/useGraphStore";
 import type { ScanGraphSnapshot } from "@/src/types/graph";
 
@@ -90,7 +105,11 @@ const STYLESHEET: cytoscape.StylesheetStyle[] = [
   },
 ];
 
-function buildElements(snapshot: ScanGraphSnapshot, nodes: ScanGraphSnapshot["nodes"], edges: ScanGraphSnapshot["edges"]): ElementDefinition[] {
+function buildElements(
+  snapshot: ScanGraphSnapshot,
+  nodes: ScanGraphSnapshot["nodes"],
+  edges: ScanGraphSnapshot["edges"],
+): ElementDefinition[] {
   const origin = snapshot.originDomain;
   const nodeEls: ElementDefinition[] = nodes.map((node) => ({
     group: "nodes",
@@ -98,7 +117,12 @@ function buildElements(snapshot: ScanGraphSnapshot, nodes: ScanGraphSnapshot["no
       id: node.domain,
       label: node.domain,
       color: VIZ_CATEGORY_COLORS[node.category],
-      size: node.isOrigin ? 36 : Math.max(16, Math.min(28, 14 + Math.log2(node.referenceCount + 1) * 4)),
+      size: node.isOrigin
+        ? 36
+        : Math.max(
+            16,
+            Math.min(28, 14 + Math.log2(node.referenceCount + 1) * 4),
+          ),
       // Concentric layouts treat each numeric rank as a ring. Keep the origin
       // one ring outside its connections; a large sentinel (100) creates
       // dozens of empty rings and fits the real nodes off-screen.
@@ -124,27 +148,33 @@ function buildElements(snapshot: ScanGraphSnapshot, nodes: ScanGraphSnapshot["no
   return [...nodeEls, ...edgeEls];
 }
 
-function runLayout(cy: Core, mode: GraphLayoutMode, origin: string): void {
+function runLayout(
+  cy: Core,
+  mode: GraphLayoutMode,
+  origin: string,
+  animate: boolean,
+): void {
+  cy.stop();
   const shared = {
-    animate: true,
-    animationDuration: 620,
+    animate,
+    animationDuration: animate ? 620 : 0,
     animationEasing: "ease-out",
     fit: true,
     padding: 64,
   };
 
   if (mode === "tree") {
-    runTreeLayout(cy);
+    runTreeLayout(cy, animate);
     return;
   }
 
   if (mode === "force") {
     cy.layout({
       name: "fcose",
-      quality: "proof",
+      quality: animate ? "proof" : "default",
       randomize: true,
-      animate: "end",
-      animationDuration: 720,
+      animate: animate ? "end" : false,
+      animationDuration: animate ? 720 : 0,
       nodeRepulsion: () => 7200,
       idealEdgeLength: () => 120,
       edgeElasticity: () => 0.45,
@@ -169,7 +199,12 @@ function runLayout(cy: Core, mode: GraphLayoutMode, origin: string): void {
   } as LayoutOptions).run();
 }
 
-function applyFocus(cy: Core, selected: string | null, actives: string[], showLabels: boolean): void {
+function applyFocus(
+  cy: Core,
+  selected: string | null,
+  actives: string[],
+  showLabels: boolean,
+): void {
   cy.batch(() => {
     cy.elements().removeClass("faded highlighted nolabel");
     if (!showLabels) cy.nodes().addClass("nolabel");
@@ -190,7 +225,12 @@ function applyFocus(cy: Core, selected: string | null, actives: string[], showLa
   });
 }
 
-export const GraphCanvas = memo(function GraphCanvas({ snapshot, onExplore, onContextMenu, onNodeTap }: Props) {
+export const GraphCanvas = memo(function GraphCanvas({
+  snapshot,
+  onExplore,
+  onContextMenu,
+  onNodeTap,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Core | null>(null);
   const onExploreRef = useRef(onExplore);
@@ -236,7 +276,6 @@ export const GraphCanvas = memo(function GraphCanvas({ snapshot, onExplore, onCo
       hideCommonInfra,
       hideFirstParty,
       newDomains,
-      searchQuery,
       snapshot.edges,
       snapshot.nodes,
       snapshot.originDomain,
@@ -249,7 +288,13 @@ export const GraphCanvas = memo(function GraphCanvas({ snapshot, onExplore, onCo
       layoutMode === "tree"
         ? buildTreeElements(snapshot, filtered.nodes, filtered.edges)
         : buildElements(snapshot, filtered.nodes, filtered.edges),
-    [filtered.edges, filtered.nodes, layoutMode, snapshot.originDomain, snapshot.scanId],
+    [
+      filtered.edges,
+      filtered.nodes,
+      layoutMode,
+      snapshot.originDomain,
+      snapshot.scanId,
+    ],
   );
 
   const elementsKey = useMemo(
@@ -265,6 +310,11 @@ export const GraphCanvas = memo(function GraphCanvas({ snapshot, onExplore, onCo
 
   const elementsRef = useRef(elements);
   elementsRef.current = elements;
+  const lastLayoutRequest = useRef<{
+    mode: GraphLayoutMode;
+    nonce: number;
+    scanId: number;
+  } | null>(null);
 
   const actives = useMemo(() => {
     if (layoutMode === "tree" && selectedNode) {
@@ -273,8 +323,17 @@ export const GraphCanvas = memo(function GraphCanvas({ snapshot, onExplore, onCo
     if (selectedNode) return neighborIds(selectedNode, filtered.edges);
     const query = searchQuery.trim();
     if (!query) return [];
-    return filtered.nodes.filter((node) => matchesSearch(node, query)).map((node) => node.domain);
-  }, [filtered.edges, filtered.nodes, layoutMode, searchQuery, selectedNode, snapshot.originDomain]);
+    return filtered.nodes
+      .filter((node) => matchesSearch(node, query))
+      .map((node) => node.domain);
+  }, [
+    filtered.edges,
+    filtered.nodes,
+    layoutMode,
+    searchQuery,
+    selectedNode,
+    snapshot.originDomain,
+  ]);
 
   useLayoutEffect(() => {
     const container = containerRef.current;
@@ -335,7 +394,11 @@ export const GraphCanvas = memo(function GraphCanvas({ snapshot, onExplore, onCo
     const observer = new ResizeObserver(() => {
       if (cancelled) return;
       cy.resize();
-      if (cy.elements().length > 0 && container.clientWidth > 0 && container.clientHeight > 0) {
+      if (
+        cy.elements().length > 0 &&
+        container.clientWidth > 0 &&
+        container.clientHeight > 0
+      ) {
         cy.fit(undefined, 64);
       }
     });
@@ -343,7 +406,11 @@ export const GraphCanvas = memo(function GraphCanvas({ snapshot, onExplore, onCo
     requestAnimationFrame(() => {
       if (cancelled) return;
       cy.resize();
-      if (cy.elements().length > 0 && container.clientWidth > 0 && container.clientHeight > 0) {
+      if (
+        cy.elements().length > 0 &&
+        container.clientWidth > 0 &&
+        container.clientHeight > 0
+      ) {
         cy.fit(undefined, 64);
       }
     });
@@ -365,7 +432,25 @@ export const GraphCanvas = memo(function GraphCanvas({ snapshot, onExplore, onCo
     if (!cy) return;
 
     cy.json({ elements: elementsRef.current });
-    runLayout(cy, layoutMode, snapshot.originDomain);
+
+    const previousRequest = lastLayoutRequest.current;
+    const relayoutRequested =
+      previousRequest === null ||
+      previousRequest.mode !== layoutMode ||
+      previousRequest.nonce !== layoutNonce ||
+      previousRequest.scanId !== snapshot.scanId;
+    lastLayoutRequest.current = {
+      mode: layoutMode,
+      nonce: layoutNonce,
+      scanId: snapshot.scanId,
+    };
+
+    // Force layouts are intentionally expensive. Keep the existing placement
+    // while filters change, and only recompute it when the user switches or
+    // explicitly requests a relayout.
+    if (layoutMode !== "force" || relayoutRequested) {
+      runLayout(cy, layoutMode, snapshot.originDomain, relayoutRequested);
+    }
 
     let cancelled = false;
     requestAnimationFrame(() => {
@@ -391,7 +476,10 @@ export const GraphCanvas = memo(function GraphCanvas({ snapshot, onExplore, onCo
 
   return (
     <div className="relative h-full min-h-[240px] w-full flex-1">
-      <div ref={containerRef} className="graph-stage h-full min-h-[240px] w-full flex-1" />
+      <div
+        ref={containerRef}
+        className="graph-stage h-full min-h-[240px] w-full flex-1"
+      />
       {filtered.nodes.length <= 1 ? (
         <p className="pointer-events-none absolute inset-0 flex items-center justify-center px-8 text-center text-[13px] text-mute">
           {filtered.nodes.length === 0

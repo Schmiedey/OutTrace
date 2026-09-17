@@ -1,4 +1,8 @@
-import type { ConnectionType, RawFinding, RawScanPayload } from "@/src/types/graph";
+import type {
+  ConnectionType,
+  RawFinding,
+  RawScanPayload,
+} from "@/src/types/graph";
 
 const MAX_FINDINGS = 4000;
 const RESOURCE_BUFFER_SIZE = 10_000;
@@ -10,7 +14,9 @@ type WatchState = {
 };
 
 function getWatchState(): WatchState {
-  const scope = globalThis as typeof globalThis & { __LINKSCOPE_WATCH__?: WatchState };
+  const scope = globalThis as typeof globalThis & {
+    __LINKSCOPE_WATCH__?: WatchState;
+  };
   if (!scope.__LINKSCOPE_WATCH__) {
     scope.__LINKSCOPE_WATCH__ = { extras: [], seen: new Set(), observer: null };
   }
@@ -29,7 +35,8 @@ function typeFromInitiator(initiator: string): ConnectionType {
 function recordResourceEntry(entry: PerformanceResourceTiming): void {
   const state = getWatchState();
   const url = entry.name;
-  if (!url || state.seen.has(url) || state.extras.length >= MAX_FINDINGS) return;
+  if (!url || state.seen.has(url) || state.extras.length >= MAX_FINDINGS)
+    return;
   state.seen.add(url);
   const type = typeFromInitiator(entry.initiatorType || "other");
   state.extras.push({
@@ -102,7 +109,11 @@ export function collectPageFindings(): RawScanPayload {
     if (value.startsWith("mailto:") || value.startsWith("tel:")) return true;
     if (value.startsWith("data:") || value.startsWith("blob:")) return true;
     if (value.startsWith("about:") || value.startsWith("chrome:")) return true;
-    if (value.startsWith("chrome-extension:") || value.startsWith("moz-extension:")) return true;
+    if (
+      value.startsWith("chrome-extension:") ||
+      value.startsWith("moz-extension:")
+    )
+      return true;
     return false;
   };
 
@@ -119,7 +130,12 @@ export function collectPageFindings(): RawScanPayload {
     return el.outerHTML.replace(/\s+/g, " ").trim().slice(0, SNIPPET);
   };
 
-  const add = (type: LocalType, rawUrl: string, snippet: string, context?: string): void => {
+  const add = (
+    type: LocalType,
+    rawUrl: string,
+    snippet: string,
+    context?: string,
+  ): void => {
     if (findings.length >= MAX) return;
     const url = resolve(rawUrl);
     if (!url) return;
@@ -141,35 +157,46 @@ export function collectPageFindings(): RawScanPayload {
     return value && value.trim() ? value.trim() : null;
   };
 
-  for (const el of Array.from(document.querySelectorAll("a[href]"))) {
+  for (const el of document.querySelectorAll("a[href]")) {
+    if (findings.length >= MAX) break;
     const href = attr(el, "href");
     if (!href) continue;
-    add("link", href, snippetOf(el), el.textContent?.replace(/\s+/g, " ").trim());
+    add(
+      "link",
+      href,
+      snippetOf(el),
+      el.textContent?.replace(/\s+/g, " ").trim(),
+    );
   }
 
-  for (const el of Array.from(document.querySelectorAll("script[src]"))) {
+  for (const el of document.querySelectorAll("script[src]")) {
+    if (findings.length >= MAX) break;
     const src = attr(el, "src");
     if (src) add("script", src, snippetOf(el));
   }
 
-  for (const el of Array.from(document.querySelectorAll("img"))) {
+  for (const el of document.querySelectorAll("img")) {
+    if (findings.length >= MAX) break;
     const src = attr(el, "src");
     if (src) add("image", src, snippetOf(el), attr(el, "alt") ?? undefined);
     const srcset = attr(el, "srcset");
     if (srcset) {
       for (const part of srcset.split(",")) {
+        if (findings.length >= MAX) break;
         const url = part.trim().split(/\s+/)[0];
         if (url) add("image", url, snippetOf(el));
       }
     }
   }
 
-  for (const el of Array.from(document.querySelectorAll("iframe[src], frame[src]"))) {
+  for (const el of document.querySelectorAll("iframe[src], frame[src]")) {
+    if (findings.length >= MAX) break;
     const src = attr(el, "src");
     if (src) add("iframe", src, snippetOf(el));
   }
 
-  for (const el of Array.from(document.querySelectorAll("link[href]"))) {
+  for (const el of document.querySelectorAll("link[href]")) {
+    if (findings.length >= MAX) break;
     const href = attr(el, "href");
     if (!href) continue;
     const rel = (attr(el, "rel") ?? "").toLowerCase();
@@ -192,39 +219,56 @@ export function collectPageFindings(): RawScanPayload {
     add(type, href, snippetOf(el), rel || undefined);
   }
 
-  for (const el of Array.from(
-    document.querySelectorAll("video[src], audio[src], source[src], track[src]"),
+  for (const el of document.querySelectorAll(
+    "video[src], audio[src], source[src], track[src]",
   )) {
+    if (findings.length >= MAX) break;
     const src = attr(el, "src");
     if (src) add("media", src, snippetOf(el));
   }
 
-  for (const el of Array.from(document.querySelectorAll("object[data], embed[src]"))) {
+  for (const el of document.querySelectorAll("object[data], embed[src]")) {
+    if (findings.length >= MAX) break;
     const src = attr(el, "data") ?? attr(el, "src");
     if (src) add("media", src, snippetOf(el));
   }
 
-  for (const el of Array.from(document.querySelectorAll("form[action]"))) {
+  for (const el of document.querySelectorAll("form[action]")) {
+    if (findings.length >= MAX) break;
     const action = attr(el, "action");
     if (action) add("network", action, snippetOf(el), "form action");
   }
 
   try {
-    const entries = performance.getEntriesByType("resource") as PerformanceResourceTiming[];
+    const entries = performance.getEntriesByType(
+      "resource",
+    ) as PerformanceResourceTiming[];
     for (const entry of entries) {
       if (findings.length >= MAX) break;
       const initiator = entry.initiatorType || "other";
       let type: LocalType = "network";
       if (initiator === "script") type = "script";
-      else if (initiator === "img" || initiator === "image" || initiator === "css") {
+      else if (
+        initiator === "img" ||
+        initiator === "image" ||
+        initiator === "css"
+      ) {
         type = initiator === "css" ? "stylesheet" : "image";
       } else if (initiator === "iframe") type = "iframe";
       else if (initiator === "video" || initiator === "audio") type = "media";
       else if (initiator === "link") type = "stylesheet";
-      else if (initiator === "xmlhttprequest" || initiator === "fetch" || initiator === "beacon") {
+      else if (
+        initiator === "xmlhttprequest" ||
+        initiator === "fetch" ||
+        initiator === "beacon"
+      ) {
         type = "network";
       }
-      add(type, entry.name, `performance:${initiator} ${entry.name.slice(0, SNIPPET - 24)}`);
+      add(
+        type,
+        entry.name,
+        `performance:${initiator} ${entry.name.slice(0, SNIPPET - 24)}`,
+      );
     }
   } catch {
     // Some pages restrict performance timeline access.
@@ -250,7 +294,9 @@ export function installLinkScopeCollector(): RawScanPayload {
     snap.findings.push(extra);
   }
 
-  const scope = globalThis as typeof globalThis & { __LINKSCOPE_SCAN__?: RawScanPayload };
+  const scope = globalThis as typeof globalThis & {
+    __LINKSCOPE_SCAN__?: RawScanPayload;
+  };
   scope.__LINKSCOPE_SCAN__ = snap;
   return snap;
 }

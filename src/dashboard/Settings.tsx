@@ -7,18 +7,17 @@ import { downloadJson } from "@/src/export/scanExport";
 import { importArchive, parseArchive } from "@/src/storage/archive";
 import { clearAllData, exportAllData } from "@/src/storage/scans";
 import {
-  alertSensitivity,
-  automaticProtectionEnabled,
-  digestFrequency,
   listIgnoredDomains,
-  notificationsEnabled,
-  setAlertSensitivity,
-  setAutomaticProtectionEnabled,
-  setDigestFrequency,
   setDomainIgnored,
-  setNotificationsEnabled,
 } from "@/src/storage/settings";
 import { useAsync } from "@/src/lib/useAsync";
+import { createCompleteBackup, restoreCompleteBackup, pendingBlockDomains, dismissPendingBlock } from "@/src/storage/backup";
+import { parseCompleteBackup } from "@/src/storage/backupSchema";
+import { historyCleanupPaused, resumeHistoryCleanup } from "@/src/storage/retention";
+import { blockDomain } from "@/src/extension/block";
+import { usageStatus } from "@/src/telemetry/usage";
+import { QuietProtection } from "@/src/components/QuietProtection";
+import { notificationMode, setNotificationMode, type NotificationMode } from "@/src/storage/settings";
 
 export function SettingsPage() {
   const [cleared, setCleared] = useState(false);
@@ -27,10 +26,28 @@ export function SettingsPage() {
   const [importError, setImportError] = useState<string | null>(null);
   const [importBusy, setImportBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const notify = useAsync(() => notificationsEnabled(), []);
-  const automatic = useAsync(() => automaticProtectionEnabled(), []);
-  const sensitivity = useAsync(() => alertSensitivity(), []);
-  const digest = useAsync(() => digestFrequency(), []);
+  const backupRef = useRef<HTMLInputElement>(null);
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [backupMessage, setBackupMessage] = useState<string | null>(null);
+  const [backupError, setBackupError] = useState<string | null>(null);
+  const pendingBlocks = useAsync(pendingBlockDomains, []);
+  const cleanup = useAsync(historyCleanupPaused, []);
+  const storage = useAsync(async () => ({ estimate: await navigator.storage?.estimate(), persistent: await navigator.storage?.persisted() }), []);
+  const usage = useAsync(usageStatus, []);
+  const [usageBusy, setUsageBusy] = useState(false);
+  const [usageMessage, setUsageMessage] = useState<string | null>(null);
+  const toggleUsage = async (): Promise<void> => {
+    setUsageBusy(true);
+    try {
+      const enabled = !usage.data?.enabled;
+      const response = await browser.runtime.sendMessage({ type: "SET_USAGE_CONSENT", enabled }) as { ok?: boolean; error?: string };
+      if (!response?.ok) throw new Error(response?.error ?? "Could not update usage consent.");
+      usage.reload();
+      setUsageMessage(enabled ? "Local usage counts enabled. Nothing is sent automatically." : "Usage counts disabled and local counters erased.");
+    } catch (error) { setUsageMessage(error instanceof Error ? error.message : "Could not update consent."); }
+    finally { setUsageBusy(false); }
+  };
+  const delivery = useAsync(notificationMode, []);
   const ignored = useAsync(() => listIgnoredDomains(), []);
   const billing = useAsync(() => billingStatus(), []);
 
@@ -42,6 +59,40 @@ export function SettingsPage() {
     setImported(null);
   };
 
+  const downloadBackup = async (): Promise<void> => {
+    setBackupBusy(true); setBackupError(null);
+    try {
+      const backup = await createCompleteBackup();
+      downloadJson("linkscope-complete-backup.json", backup);
+      setBackupMessage("Backup download requested. Keep this private file somewhere safe; it contains website URLs and scan evidence.");
+    } catch (error) { setBackupError(error instanceof Error ? error.message : "Could not create backup."); }
+    finally { setBackupBusy(false); }
+  };
+
+  const restoreBackup = async (file: File | undefined): Promise<void> => {
+    if (!file) return;
+    setBackupBusy(true); setBackupMessage(null); setBackupError(null);
+    try {
+      if (file.size > 200 * 1024 * 1024) throw new Error("This backup is too large to restore here (maximum 200 MB).");
+      const backup = parseCompleteBackup(JSON.parse(await file.text()) as unknown);
+      const confirmed = window.confirm(`Replace this browser's scans, audits, watched sites, alerts, and preferences with this backup (${backup.tables.scans.length} scans, ${backup.tables.audits.length} audits)? Download a backup of your current data first. Close other LinkScope reports and wait for running scans to finish. Automatic protection and restored watching will be off. Existing browser blocks and payment access remain unchanged.`);
+      if (!confirmed) return;
+      await restoreCompleteBackup(backup);
+      delivery.reload(); ignored.reload(); pendingBlocks.reload(); cleanup.reload(); storage.reload();
+      setBackupMessage("Backup restored. Watching and automatic protection are off. History cleanup is paused so you can review restored scans. Re-enable blocks individually below; refresh other open reports.");
+    } catch (error) { setBackupError(error instanceof Error ? error.message : "Restore failed. No partial restore was committed."); }
+    finally { setBackupBusy(false); if (backupRef.current) backupRef.current.value = ""; }
+  };
+
+  const activateBlock = async (domain: string): Promise<void> => {
+    setBackupError(null);
+    try {
+      const result = await blockDomain(domain);
+      if (result === "blocked") { await dismissPendingBlock(domain); pendingBlocks.reload(); }
+      else setBackupMessage("Block filter copied; browser blocking was not activated.");
+    } catch (error) { setBackupError(error instanceof Error ? error.message : "Could not activate block."); }
+  };
+
   const exportAll = async (): Promise<void> => {
     if (!billing.data?.paid) return;
     const data = await exportAllData();
@@ -50,32 +101,6 @@ export function SettingsPage() {
       list: LIST_ATTRIBUTION,
     });
     setExported(true);
-  };
-
-  const toggleNotify = async (): Promise<void> => {
-    const next = !(notify.data ?? true);
-    await setNotificationsEnabled(next);
-    notify.reload();
-  };
-
-  const toggleAutomatic = async (): Promise<void> => {
-    const next = !(automatic.data ?? false);
-    if (next) {
-      const granted = await browser.permissions.request({ origins: ["*://*/*"] });
-      if (!granted) return;
-    }
-    await setAutomaticProtectionEnabled(next);
-    automatic.reload();
-  };
-
-  const toggleSensitivity = async (): Promise<void> => {
-    await setAlertSensitivity(sensitivity.data === "all" ? "important" : "all");
-    sensitivity.reload();
-  };
-
-  const toggleDigest = async (): Promise<void> => {
-    await setDigestFrequency(digest.data === "daily" ? "weekly" : "daily");
-    digest.reload();
   };
 
   const onImportFile = async (file: File | undefined): Promise<void> => {
@@ -110,35 +135,51 @@ export function SettingsPage() {
       <section className="mb-8">
         <h2 className="text-[15px] font-medium">Privacy</h2>
         <p className="mt-2 text-[14px] leading-relaxed text-mute">
-          Automatic protection checks a site after you stay on it for a few seconds, at most twice per day per site.
-          Sites you explicitly add to Watching can also be revisited daily or weekly from this browser. Scan contents stay on this device; ExtensionPay receives only
-          the account and subscription information needed to verify Pro. Free history keeps up to 20 scans for 30
-          days; Pro keeps up to 1,000 scans for one year.
+          Manual checks use temporary current-tab access. Optional Quiet Protection quietly re-checks visited sites after a 6-second dwell, at most twice per site per day. It is off by default and requires optional site access.
+          Sites you explicitly add to Watching can be revisited daily or weekly from this browser. Scan contents stay on this device; ExtensionPay receives only
+          the account and subscription information needed to verify Pro. Single-page scans are unlimited on every plan.
+          Device-storage cleanup keeps up to 1,000 unsaved scans for one year on every plan; explicitly saved scans are excluded. No cloud account or scan sync is used.
         </p>
-        <Button variant={(automatic.data ?? false) ? "subtle" : "ghost"} className="mt-4" onClick={() => void toggleAutomatic()}>
-          {(automatic.data ?? false) ? "Automatic protection on" : "Turn on automatic protection"}
-        </Button>
-        <p className="mt-2 text-[12px] text-mute">
-          Off by default. Enabling it grants LinkScope access to check regular websites you visit.
-        </p>
+        <QuietProtection />
+        <p className="mt-2 text-[12px] text-mute">The toolbar normally stays blank. +N means unseen notable activity; ! means an important change. Hover for the last saved score and capture time.</p>
+        <p className="mt-2 text-[12px] text-mute">Watching is separate: choose when you visit, daily, or weekly. Scheduled checks may briefly load the website in an inactive tab.</p>
+      </section>
+      <section className="mb-8" aria-label="Optional usage counts">
+        <h2 className="text-[15px] font-medium">Local usage counts</h2>
+        <p className="mt-2 text-[13px] text-mute">Off by default. Record feature counts on this device only: opens, first/second scans, a return in week two after consent, watchlist adds, share exports, digests, and upgrade opens. No URLs, domains, page data, scores, user IDs, or exact timestamps enter the exported counts. Nothing from before consent is reconstructed. Turning this off erases local counters.</p>
+        <p className="mt-2 text-[12px] text-mute">Nothing is sent automatically. You can export and review the counts, then choose whether to share the file yourself.</p>
+        <div className="mt-3 flex flex-wrap gap-2"><Button variant="ghost" disabled={usageBusy || usage.loading} onClick={() => void toggleUsage()}>{usageBusy ? "Updating…" : usage.data?.enabled ? "Usage counts on · turn off" : "Enable local usage counts"}</Button><Button variant="ghost" disabled={!usage.data?.enabled || usageBusy} onClick={() => { void usageStatus().then((value) => { downloadJson("linkscope-usage-counts.json", { formatVersion: 1, counts: value.counts }); usage.reload(); }).catch(() => setUsageMessage("Could not export usage counts.")); }}>Export counts for review</Button></div>
+        {usageMessage ? <p role="status" className="mt-3 text-[12px] text-mute">{usageMessage}</p> : null}
+      </section>
+      <section className="mb-8" aria-label="Local backups">
+        <h2 className="text-[15px] font-medium">Local backups & storage</h2>
+        <p className="mt-2 mb-4 text-[14px] text-mute">Complete backups are available on every plan. They include scans, saved items, audits, alerts, watched sites, followed and ignored domains, preferences, and portable block domains. Payment tokens and browser permissions are never included. Updates keep your data local; uninstalling or losing this device can remove it.</p>
+        <p className="mb-4 text-[12px] text-mute">{storage.data?.estimate?.usage !== undefined ? `Using ${(storage.data.estimate.usage / 1024 / 1024).toFixed(1)} MB. ` : ""}{storage.data?.persistent ? "Browser persistence protection is enabled; backups are still necessary." : "Browser persistence protection is not enabled or unavailable."}</p>
+        {storage.error ? <p role="alert" className="mb-3 text-[12px] text-rose">Storage information unavailable: {storage.error}</p> : null}
+        <div className="flex flex-wrap gap-2">
+          <Button variant="ghost" disabled={backupBusy} onClick={() => void downloadBackup()}>{backupBusy ? "Working…" : "Download complete backup"}</Button>
+          <Button variant="ghost" disabled={backupBusy} onClick={() => backupRef.current?.click()}>Restore complete backup</Button>
+          <Button variant="ghost" disabled={backupBusy || storage.data?.persistent} onClick={() => { void navigator.storage?.persist().then((granted) => { setBackupMessage(granted ? "Browser persistence enabled. Keep backups for device loss or uninstall." : "The browser did not grant persistence. Keep regular backups."); storage.reload(); }).catch(() => setBackupError("The browser could not enable storage persistence.")); }}>Protect local storage</Button>
+          <input ref={backupRef} type="file" accept="application/json,.json" className="hidden" aria-label="Choose complete backup" onChange={(event) => void restoreBackup(event.target.files?.[0])} />
+        </div>
+        {backupMessage ? <p role="status" className="mt-3 text-[13px] text-lime">{backupMessage}</p> : null}
+        {backupError ? <p role="alert" className="mt-3 text-[13px] text-rose">{backupError}</p> : null}
+        {cleanup.data ? <div className="mt-4 border border-line p-3"><p className="text-[13px] text-mute">History cleanup is paused after a restore, billing problem, or expired Pro access. Saved scans remain protected when cleanup resumes.</p><Button variant="ghost" className="mt-2" disabled={backupBusy} onClick={() => { if (window.confirm("Resume automatic history cleanup? Unsaved scans beyond your current plan's count or age limits may be deleted on the next scan. Download a backup first.")) void resumeHistoryCleanup().then(() => cleanup.reload()).catch(() => setBackupError("Could not resume cleanup.")); }}>Resume history cleanup</Button></div> : null}
+        {pendingBlocks.data?.length ? <div className="mt-4"><h3 className="text-[13px] font-medium">Restored blocks awaiting permission</h3><ul className="mt-2 divide-y divide-line">{pendingBlocks.data.map((domain) => <li key={domain} className="flex items-center justify-between gap-3 py-2"><span className="text-[12px]">{domain}</span><Button variant="ghost" disabled={backupBusy} onClick={() => void activateBlock(domain)}>Enable block</Button></li>)}</ul></div> : null}
       </section>
       <section className="mb-8">
         <h2 className="text-[15px] font-medium">Change alerts</h2>
         <p className="mt-2 mb-4 text-[14px] leading-relaxed text-mute">
-          LinkScope can send a daily or weekly summary when watched sites changed. It can also notify you when a domain you follow
-          appears on another site you check. It stays quiet when nothing changed.
+          Notifications are off by default. Important watched-site or followed-domain changes can notify after a five-minute coalescing window, at most once per site per day. Notable activity stays in the local inbox. Recurring notifications retain Pro entitlements.
         </p>
         <div className="flex flex-wrap gap-2">
-          <Button variant="ghost" onClick={() => void toggleNotify()}>
-            {(notify.data ?? true) ? "Notifications on" : "Notifications off"}
-          </Button>
-          <Button variant="ghost" onClick={() => void toggleSensitivity()}>
-            Alerts: {sensitivity.data === "all" ? "all changes" : "important only"}
-          </Button>
-          <Button variant="ghost" onClick={() => void toggleDigest()}>
-            Digest: {digest.data === "daily" ? "daily" : "weekly"}
-          </Button>
+          <label className="text-[13px] text-mute">Notify me about
+            <select className="ml-3 rounded-md border border-line bg-canvas p-2" value={delivery.data ?? "none"} disabled={delivery.loading} onChange={(event) => { void setNotificationMode(event.target.value as NotificationMode).then(delivery.reload).catch(() => setUsageMessage("Could not save notification preference.")); }}>
+              <option value="none">Nothing</option><option value="important">Major tracker changes only</option><option value="weekly">Weekly summary</option><option value="important-weekly">Major changes + weekly summary</option>
+            </select>
+          </label>
         </div>
+        <p className="mt-2 text-[12px] text-mute">Immediate and weekly delivery overlap only when you explicitly choose both. Weekly summaries stay quiet if no meaningful changes occurred.</p>
       </section>
       <section className="mb-8">
         <h2 className="text-[15px] font-medium">Ignored domains</h2>
@@ -198,7 +239,7 @@ export function SettingsPage() {
         </div>
         {imported ? <p className="mt-3 text-[13px] text-lime">{imported}</p> : null}
         {importError ? <p className="mt-3 text-[13px] text-rose">{importError}</p> : null}
-        {!billing.data?.paid ? <p className="mt-3 text-[12px] text-mute"><Link to="/pro" className="underline">View Pro</Link> for one-year history and export.</p> : null}
+        {!billing.data?.paid ? <p className="mt-3 text-[12px] text-mute"><Link to="/pro" className="underline">View Pro</Link> for recurring monitoring and bulk exports. Complete local backups are free.</p> : null}
       </section>
       <section>
         <h2 className="text-[15px] font-medium">Danger zone</h2>

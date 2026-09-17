@@ -11,12 +11,35 @@ export type DigestFrequency = "daily" | "weekly";
 
 export async function notificationsEnabled(): Promise<boolean> {
   const row = await db.settings.get(NOTIFICATIONS_KEY);
-  if (!row) return true;
+  if (!row) return false;
   return row.value === "true";
 }
 
 export async function setNotificationsEnabled(enabled: boolean): Promise<void> {
   await db.settings.put({ key: NOTIFICATIONS_KEY, value: enabled ? "true" : "false" });
+}
+
+export type NotificationMode = "none" | "important" | "weekly" | "important-weekly";
+export async function notificationMode(): Promise<NotificationMode> {
+  if (!(await notificationsEnabled())) return "none";
+  const value = (await db.settings.get("notification-mode"))?.value;
+  return value === "none" || value === "weekly" || value === "important-weekly" ? value : "important";
+}
+export async function setNotificationMode(value: NotificationMode): Promise<void> {
+  await db.transaction("rw", db.settings, async () => {
+    await db.settings.put({ key: "notification-mode", value });
+    await setNotificationsEnabled(value !== "none");
+    if (value === "weekly" || value === "important-weekly") await setDigestFrequency("weekly");
+  });
+}
+
+export type ProtectionPromptState = "never-seen" | "dismissed" | "enabled";
+export async function protectionPromptState(): Promise<ProtectionPromptState> {
+  const value = (await db.settings.get("automatic-protection-prompt"))?.value;
+  return value === "dismissed" || value === "enabled" ? value : "never-seen";
+}
+export async function setProtectionPromptState(value: ProtectionPromptState): Promise<void> {
+  await db.settings.put({ key: "automatic-protection-prompt", value });
 }
 
 export async function automaticProtectionEnabled(): Promise<boolean> {

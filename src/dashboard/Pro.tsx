@@ -15,7 +15,10 @@ export function ProPage() {
       if (action === "checkout") {
         await launchCheckout();
         setCheckoutOpened(true);
-      } else if (action === "login") await launchLogin(); else await billingStatus(true);
+      } else if (action === "login") {
+        if (billing.data?.paid) await launchCheckout();
+        else await launchLogin();
+      } else await billingStatus(true);
       billing.reload();
     } catch (err) { setError(err instanceof Error ? err.message : "Could not open billing."); }
     finally { setBusy(null); }
@@ -25,7 +28,7 @@ export function ProPage() {
     <div className="flex items-center gap-3"><p className="text-[12px] tracking-[0.14em] text-mute uppercase">LinkScope Pro</p>{status?.sandbox ? <span className="rounded-full border border-amber px-2 py-0.5 text-[10px] text-amber">Stripe sandbox</span> : null}</div>
     <h1 className="font-display mt-3 max-w-3xl text-5xl leading-[1.05]">See what changed before it becomes a problem.</h1>
     <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-mute">Turn one-off privacy checks into continuous monitoring. Scheduled checks run in your browser and your scan history stays on this device.</p>
-    <div className="mt-10 grid gap-4 md:grid-cols-2"><Plan name="Free" price="$0" items={["Unlimited manual page scans", "Full graph and privacy score", "One watched site", "20 scans / 30 days"]} /><Plan name="Pro" price="$8 / month" items={["Unlimited watched sites", "Daily or weekly background checks", "Change alerts and before/after diffs", "15-second deep iframe scanning", "1,000 scans / one year + export"]} highlighted /></div>
+    <div className="mt-10 grid gap-4 md:grid-cols-2"><Plan name="Free" price="$0" items={["Unlimited single-page and deep scans", "Score, explanation, and full graph", "Branded share cards + single-scan export", "Saved scans and complete local backups"]} /><Plan name="Pro" price="$8 / month" items={["Unlimited watched sites", "Daily or weekly background checks", "Native digests and change alerts", "Before/after monitoring and deep audits", "Multi-site history reporting + bulk export"]} highlighted /></div>
     <section className="mt-8 grid gap-5 border-y border-line py-7 sm:grid-cols-2 lg:grid-cols-4">
       <Benefit icon={BellRing} title="Automatic alerts">Know when trackers or connections change.</Benefit>
       <Benefit icon={Eye} title="Deeper visibility">Catch delayed requests and embedded frames.</Benefit>

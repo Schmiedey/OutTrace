@@ -1,4 +1,6 @@
 import { HashRouter, Route, Routes } from "react-router-dom";
+import { useEffect } from "react";
+import { noteUsage } from "@/src/telemetry/usage";
 import { AppShell } from "@/src/components/AppShell";
 import { AuditComparePage } from "@/src/dashboard/AuditCompare";
 import { AuditDomainsPage } from "@/src/dashboard/AuditDomains";
@@ -21,6 +23,7 @@ import { WatchingPage } from "@/src/dashboard/Watching";
 import { ProPage } from "@/src/dashboard/Pro";
 
 export function App() {
+  useEffect(() => { noteUsage("product-opened"); }, []);
   return (
     <HashRouter>
       <Routes>

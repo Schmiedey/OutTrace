@@ -2,10 +2,10 @@ import { Link } from "react-router-dom";
 import { groupSnapshotByOwner, mergeOwnerGroups } from "@/src/analysis/owners";
 import { insightLines } from "@/src/analysis/statistics";
 import { AuditSiteCard } from "@/src/components/AuditSiteCard";
+import { ActivityInbox } from "@/src/components/ActivityInbox";
 import { OwnerGroups } from "@/src/components/OwnerGroups";
 import { formatCount, formatRelativeTime } from "@/src/lib/utils";
 import { useAsync } from "@/src/lib/useAsync";
-import { listRecentAlerts } from "@/src/storage/alerts";
 import { getDailyBriefing, getWeeklyTrend } from "@/src/storage/briefing";
 import { getOverviewStats, listLatestGraphs, listRecentScans } from "@/src/storage/scans";
 
@@ -13,7 +13,6 @@ export function OverviewPage() {
   const now = Date.now();
   const stats = useAsync(() => getOverviewStats(), []);
   const scans = useAsync(() => listRecentScans(12), []);
-  const alerts = useAsync(() => listRecentAlerts(8), []);
   const briefing = useAsync(() => getDailyBriefing(), []);
   const trend = useAsync(() => getWeeklyTrend(), []);
   const owners = useAsync(async () => {
@@ -50,9 +49,11 @@ export function OverviewPage() {
             <p className="text-[11px] tracking-[0.12em] text-mute uppercase">This week</p>
             <p className="mt-2 text-[16px] font-medium text-ink">{trend.data?.headline ?? "Building your trend…"}</p>
             <p className="mt-2 text-[12px] text-mute">
-              {String(trend.data?.sitesChecked ?? 0)} {trend.data?.sitesChecked === 1 ? "site" : "sites"} protected
+              {String(trend.data?.sitesChecked ?? 0)} {trend.data?.sitesChecked === 1 ? "site" : "sites"} checked
               {trend.data?.currentScore !== undefined ? ` · average ${String(trend.data.currentScore)}/100` : ""}
             </p>
+            {trend.data ? <p className="mt-2 text-[12px] text-mute">{trend.data.changedSites} changed · {trend.data.gainedTrackers} gained trackers · {trend.data.improvedSites} improved{trend.data.scoreDelta !== undefined ? ` · score comparison: ${trend.data.comparisonSites} matching sites` : " · score comparison needs at least 3 matching sites"}</p> : null}
+            {trend.data?.comparisonCurrentScore !== undefined ? <p className="mt-2 text-[12px] text-mute">Matching-site average: {trend.data.previousScore} → {trend.data.comparisonCurrentScore}</p> : null}
           </div>
         </section>
       ) : null}
@@ -65,33 +66,7 @@ export function OverviewPage() {
         <StatCard label="Connections" value={stats.data?.connections} />
         <StatCard label="Third-party trackers" value={stats.data?.trackers} />
       </section>
-      {alerts.data?.length ? (
-        <section className="mb-10">
-          <h2 className="mb-3 text-[13px] text-mute">Changes</h2>
-          <ul className="divide-y divide-line border-y border-line">
-            {alerts.data.map((alert) => (
-              <li key={alert.id ?? `${alert.siteDomain}-${String(alert.timestamp)}`}>
-                <Link
-                  to={`/diff/${String(alert.fromScanId)}/${String(alert.toScanId)}`}
-                  className="flex items-baseline justify-between gap-4 py-3 hover:bg-raised/80"
-                >
-                  <div>
-                    <div className="text-[14px] text-ink">{alert.siteDomain}</div>
-                    <div className="text-[12px] text-mute">
-                      {alert.kind === "watched-site-change"
-                        ? `${formatCount((alert.addedDomains ?? []).length)} added · ${formatCount((alert.removedDomains ?? []).length)} removed`
-                        : alert.addedTrackers.length > 0
-                        ? `${formatCount(alert.addedTrackers.length)} new tracker${alert.addedTrackers.length === 1 ? "" : "s"}: ${alert.addedTrackers.slice(0, 3).join(", ")}`
-                        : `Trackers ${alert.trackerDelta > 0 ? "+" : ""}${String(alert.trackerDelta)}`}
-                    </div>
-                  </div>
-                  <span className="shrink-0 text-[12px] text-mute">{formatRelativeTime(alert.timestamp, now)}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+      <ActivityInbox />
       <section className="mb-10">
         <h2 className="mb-3 text-[13px] text-mute">Notes</h2>
         <ul className="space-y-1.5">

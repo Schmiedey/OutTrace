@@ -2,7 +2,7 @@
   "name": "linkscope",
   "description": "See every site, service, tracker, script, and external domain a webpage connects to.",
   "private": true,
-  "version": "0.3.1",
+  "version": "0.4.0",
   "type": "module",
   "scripts": {
     "dev": "wxt",
@@ -16,8 +16,8 @@
     "check:entitlements": "node scripts/check-entitlements.mjs",
     "test": "vitest run",
     "compile": "tsc --noEmit",
-    "prebuild": "npm run check:secrets && npm run check:classification-license && npm run test",
-    "prezip": "npm run check:secrets && npm run check:classification-license && npm run test",
+    "prebuild": "npm run compile && npm run check:secrets && npm run check:classification-license && npm run test",
+    "prezip": "npm run compile && npm run check:secrets && npm run check:classification-license && npm run test",
     "postinstall": "wxt prepare"
   },
   "dependencies": {
@@ -36,6 +36,7 @@
     "react-router-dom": "^7.9.4",
     "tailwind-merge": "^3.3.1",
     "tldts": "^7.0.17",
+    "zod": "^4.6.5",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
@@ -45,6 +46,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@wxt-dev/module-react": "^1.1.5",
+    "fake-indexeddb": "^6.2.5",
     "tailwindcss": "^4.1.13",
     "typescript": "^5.9.3",
     "vitest": "^5.0.0",

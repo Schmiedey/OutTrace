@@ -37,12 +37,13 @@ export function FollowingPage() {
   const watched = useAsync(loadWatchedSites, []);
   const followed = useAsync(() => listFollowedDomains(), []);
   const [url, setUrl] = useState("");
-  const [schedule, setSchedule] = useState<WatchedSiteSchedule>("daily");
+  const [schedule, setSchedule] = useState<WatchedSiteSchedule>("visit");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const now = Date.now();
 
   const add = async (): Promise<void> => {
+    if (!isPro) { setError("Watchlists and recurring checks require Pro. Single-page scans stay free."); return; }
     setBusy("add");
     setError(null);
     try {
@@ -62,14 +63,14 @@ export function FollowingPage() {
     }
   };
 
-  const action = async (domain: string, type: "run" | "remove" | "schedule", nextSchedule?: WatchedSiteSchedule): Promise<void> => {
+  const action = async (domain: string, type: "run" | "remove" | "schedule" | "alert", nextSchedule?: WatchedSiteSchedule, alertMode?: "important" | "all" | "never"): Promise<void> => {
     setBusy(domain);
     setError(null);
     try {
       const message = type === "run"
         ? { type: "RUN_WATCHED_SITE", domain }
-        : type === "schedule"
-          ? { type: "UPDATE_WATCHED_SITE", domain, schedule: nextSchedule }
+        : type === "schedule" || type === "alert"
+          ? { type: "UPDATE_WATCHED_SITE", domain, schedule: nextSchedule, alertMode }
           : { type: "REMOVE_WATCHED_SITE", domain };
       const response = (await browser.runtime.sendMessage(message)) as WatchedSitesResponse;
       if (!response.ok) throw new Error(response.error ?? "Could not update watched site.");
@@ -91,21 +92,23 @@ export function FollowingPage() {
         <div>
           <h1 className="font-display text-4xl">Watched sites</h1>
           <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-mute">
-            LinkScope revisits these sites from this browser and alerts you when third-party domains appear or disappear.
+            Quiet Protection checks sites you visit. Watching tracks sites you explicitly care about. Choose visit-only checks or scheduled daily/weekly checks, even when you do not visit.
           </p>
         </div>
         <Link to="/pro" className="text-[13px] text-ink underline">{isPro ? "Pro active" : "View Pro"}</Link>
       </div>
 
+      <p className="mt-3 text-[12px] text-mute">Scheduled checks may briefly load the website in an inactive tab. Visit-only Watching needs site access and uses the same 6-second dwell and 12-hour cooldown as Quiet Protection. Notifications remain off unless enabled in Settings.</p>
       <section className="mt-8 rounded-md border border-line bg-panel p-5">
         <div className="grid gap-3 sm:grid-cols-[1fr_120px_auto]">
           <input type="url" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://example.com" aria-label="Website to watch" className="h-10 rounded-md border border-line bg-canvas px-3 text-[13px] outline-none focus:border-ink" />
-          <select value={schedule} disabled={!isPro} onChange={(event) => setSchedule(event.target.value as WatchedSiteSchedule)} className="h-10 rounded-md border border-line bg-canvas px-3 text-[13px] disabled:cursor-not-allowed disabled:opacity-60">
-            <option value="daily">Daily</option><option value="weekly">Weekly</option>
+          <select value={schedule} aria-label="Check frequency" disabled={!isPro} onChange={(event) => setSchedule(event.target.value as WatchedSiteSchedule)} className="h-10 rounded-md border border-line bg-canvas px-3 text-[13px] disabled:cursor-not-allowed disabled:opacity-60">
+            <option value="visit">When I visit</option><option value="daily">Daily</option><option value="weekly">Weekly</option>
           </select>
-          <Button disabled={!url.trim() || busy === "add"} onClick={() => void add()}>{busy === "add" ? "Adding & checking…" : "Add site"}</Button>
+          <Button disabled={!isPro || !url.trim() || busy === "add"} onClick={() => void add()}>{busy === "add" ? "Adding & checking…" : "Add site · Pro"}</Button>
         </div>
-        <p className="mt-3 text-[12px] text-mute">Free includes one manual baseline site. Pro adds scheduled checks, alerts, unlimited sites, and deep iframe scanning.</p>
+        <p className="mt-3 text-[12px] text-mute">Single-page scans and share cards stay free. Pro adds watchlists, scheduled checks, digests, change alerts, and multi-site reporting.</p>
+        <p className="mt-2 text-[12px] text-mute">Every change includes routine entries in the collapsed Activity inbox. Never keeps scans in local history without inbox or badge events. Only important changes can send notifications; delivery is controlled separately in Settings.</p>
       </section>
 
       {error ? <p className="mt-4 text-[13px] text-rose">{error}</p> : null}
@@ -114,9 +117,10 @@ export function FollowingPage() {
           <ul className="divide-y divide-line border-y border-line">
             {sites.map((site) => (
               <li key={site.domain} className="flex flex-wrap items-center justify-between gap-4 py-4">
-                <div className="min-w-0"><p className="text-[15px] text-ink">{site.domain}</p><p className="mt-1 text-[12px] text-mute">{site.lastRunAt ? `Last checked ${formatRelativeTime(site.lastRunAt, now)}` : "Not checked yet"}{site.lastError ? ` · ${site.lastError}` : isPro ? ` · next ${formatNextRun(site.nextRunAt, now)}` : " · background checks · Pro"}</p></div>
-                <div className="flex items-center gap-2">
-                  <select value={site.schedule} disabled={!isPro || busy === site.domain} onChange={(event) => void action(site.domain, "schedule", event.target.value as WatchedSiteSchedule)} className="h-8 rounded-md border border-line bg-canvas px-2 text-[12px] disabled:cursor-not-allowed disabled:opacity-60" aria-label={`Schedule for ${site.domain}`}><option value="daily">Daily</option><option value="weekly">Weekly</option></select>
+                <div className="min-w-0"><p className="text-[15px] text-ink">{site.domain}{!site.enabled ? " · paused" : ""}</p><p className="mt-1 text-[12px] text-mute">{site.lastRunAt ? `Last checked ${formatRelativeTime(site.lastRunAt, now)}` : "Not checked yet"}{site.lastError ? ` · ${site.lastError}` : site.schedule === "visit" ? " · when you visit" : isPro ? ` · next ${formatNextRun(site.nextRunAt, now)}` : " · background checks · Pro"}</p></div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <select value={site.schedule} disabled={!isPro || busy === site.domain} onChange={(event) => void action(site.domain, "schedule", event.target.value as WatchedSiteSchedule)} className="h-8 rounded-md border border-line bg-canvas px-2 text-[12px] disabled:cursor-not-allowed disabled:opacity-60" aria-label={`Schedule for ${site.domain}`}><option value="visit">When I visit</option><option value="daily">Daily</option><option value="weekly">Weekly</option></select>
+                  <select value={site.alertMode ?? "important"} disabled={!isPro || busy === site.domain} aria-label={`Activity for ${site.domain}`} className="h-8 rounded-md border border-line bg-canvas px-2 text-[12px]" onChange={(event) => void action(site.domain, "alert", undefined, event.target.value as "important" | "all" | "never")}><option value="important">Important changes</option><option value="all">Every change</option><option value="never">Never</option></select>
                   {site.lastScanId ? <Link className="text-[12px] underline" to={`/graph/${String(site.lastScanId)}`}>Latest</Link> : null}
                   <Button size="sm" variant="ghost" disabled={busy === site.domain} onClick={() => void action(site.domain, "run")}>Check now</Button>
                   <Button size="sm" variant="ghost" disabled={busy === site.domain} onClick={() => void action(site.domain, "remove")}>Remove</Button>

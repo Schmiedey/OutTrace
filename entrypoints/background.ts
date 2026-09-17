@@ -1,25 +1,56 @@
-import { applyBadgeForUrl, refreshActiveTabBadge } from "@/src/extension/badge";
+import {
+  applyBadgeForUrl,
+  forgetActionState,
+  refreshActiveTabBadge,
+} from "@/src/extension/badge";
+import {
+  AUTO_SCAN_DWELL_MS,
+  shouldAutomaticallyScan,
+} from "@/src/extension/autoProtect";
+import {
+  automaticProtectionEnabled,
+  setAutomaticProtectionEnabled,
+} from "@/src/storage/settings";
 import { canScanUrl } from "@/src/extension/permissions";
-import { AUTO_SCAN_DWELL_MS, shouldAutomaticallyScan } from "@/src/extension/autoProtect";
 import { installRequestCapture } from "@/src/extension/requestLog";
 import { runAudit, requestAuditCancellation } from "@/src/audit/runner";
-import { openDashboard, scanActiveTab, watchActiveTab } from "@/src/extension/scanFlow";
+import {
+  openDashboard,
+  scanActiveTab,
+  watchActiveTab,
+} from "@/src/extension/scanFlow";
 import { blockDomain } from "@/src/extension/block";
 import type { ScanProgressUpdate } from "@/src/extension/scanProgress";
-import { maybeNotifyWeeklyDigest } from "@/src/storage/alerts";
+import {
+  CHANGE_NOTIFICATION_ALARM,
+  deliverPendingNotifications,
+  maybeNotifyWeeklyDigest,
+} from "@/src/storage/alerts";
 import { registrableDomain } from "@/src/lib/domain";
 import { toggleFollowDomain } from "@/src/storage/follows";
-import { getBillingStatus, openProCheckout, openProLogin, startBillingBackground } from "@/src/billing/extpay";
+import {
+  getBillingStatus,
+  openProCheckout,
+  openProLogin,
+  startBillingBackground,
+} from "@/src/billing/extpay";
 import { requirePro, runProAction } from "@/src/billing/entitlements";
-import { installWatchedSiteSchedule, runDueWatchedSites, runWatchedSite, WATCHED_SITE_ALARM } from "@/src/extension/watchedSites";
+import {
+  installWatchedSiteSchedule,
+  runDueWatchedSites,
+  runWatchedSite,
+  WATCHED_SITE_ALARM,
+} from "@/src/extension/watchedSites";
 import {
   addWatchedSite,
   listWatchedSites,
   normalizeWatchedSiteUrl,
   removeWatchedSite,
   updateWatchedSiteSchedule,
+  updateWatchedSiteAlertMode,
 } from "@/src/storage/watchedSites";
 import type { WatchedSiteSchedule } from "@/src/types/graph";
+import { setUsageConsent } from "@/src/telemetry/usage";
 
 type AuditTarget = {
   tabId: number;
@@ -31,47 +62,54 @@ let recentAuditTarget: AuditTarget | null = null;
 const runningAudits = new Map<number, Promise<void>>();
 const automaticScanTimers = new Map<number, ReturnType<typeof setTimeout>>();
 const automaticScansInFlight = new Set<string>();
-
 function cancelAutomaticScan(tabId: number): void {
-  const timer = automaticScanTimers.get(tabId);
-  if (timer) clearTimeout(timer);
+  clearTimeout(automaticScanTimers.get(tabId));
   automaticScanTimers.delete(tabId);
 }
-
-function scheduleAutomaticScan(tabId: number, url: string | undefined): void {
+function scheduleAutomaticScan(tabId: number, url?: string): void {
   cancelAutomaticScan(tabId);
   if (!url || !canScanUrl(url)) return;
-  const timer = setTimeout(() => {
-    automaticScanTimers.delete(tabId);
-    void (async () => {
-      const current = await browser.tabs.get(tabId);
-      if (!current.active || current.url !== url) return;
-      const hasAccess = await browser.permissions.contains({ origins: ["*://*/*"] });
-      if (!hasAccess || !(await shouldAutomaticallyScan(url))) return;
-      const domain = registrableDomain(url) ?? new URL(url).hostname;
-      if (automaticScansInFlight.has(domain)) return;
-      automaticScansInFlight.add(domain);
-      try {
-        const billing = await getBillingStatus();
-        await scanActiveTab({
-          tabId,
-          url,
-          openReport: false,
-          notifyIfNew: false,
-          captureMode: "automatic",
-          extendedHistory: billing.paid,
-        });
-      } finally {
-        automaticScansInFlight.delete(domain);
-      }
-    })().catch((error: unknown) => {
-      console.error(error instanceof Error ? error.message : "Automatic protection check failed");
-    });
-  }, AUTO_SCAN_DWELL_MS);
-  automaticScanTimers.set(tabId, timer);
+  automaticScanTimers.set(
+    tabId,
+    setTimeout(() => {
+      automaticScanTimers.delete(tabId);
+      void (async () => {
+        const current = await browser.tabs.get(tabId);
+        if (
+          !current.active ||
+          current.url !== url ||
+          !(await shouldAutomaticallyScan(url))
+        )
+          return;
+        const domain = registrableDomain(url) ?? new URL(url).hostname;
+        if (automaticScansInFlight.has(domain)) return;
+        automaticScansInFlight.add(domain);
+        try {
+          const billing = await getBillingStatus();
+          if (!(await shouldAutomaticallyScan(url))) return;
+          const tab = await browser.tabs.get(tabId);
+          if (!tab.active || tab.url !== url) return;
+          await scanActiveTab({
+            tabId,
+            url,
+            openReport: false,
+            notifyIfNew: false,
+            captureMode: "automatic",
+            extendedHistory: billing.paid,
+          });
+        } finally {
+          automaticScansInFlight.delete(domain);
+        }
+      })().catch(() => {
+        /* Closed tabs and revoked permissions cancel quietly. */
+      });
+    }, AUTO_SCAN_DWELL_MS),
+  );
 }
-
-function auditTargetFromTab(tab: { id?: number; url?: string }): AuditTarget | null {
+function auditTargetFromTab(tab: {
+  id?: number;
+  url?: string;
+}): AuditTarget | null {
   if (tab.id === undefined || !tab.url || !canScanUrl(tab.url)) return null;
   const domain = registrableDomain(tab.url) ?? new URL(tab.url).hostname;
   return { tabId: tab.id, url: tab.url, domain };
@@ -89,7 +127,9 @@ async function rememberAuditTarget(tabId: number): Promise<void> {
 async function resolveAuditTarget(): Promise<AuditTarget | null> {
   if (recentAuditTarget) {
     try {
-      const current = auditTargetFromTab(await browser.tabs.get(recentAuditTarget.tabId));
+      const current = auditTargetFromTab(
+        await browser.tabs.get(recentAuditTarget.tabId),
+      );
       if (current) {
         recentAuditTarget = current;
         return current;
@@ -103,15 +143,20 @@ async function resolveAuditTarget(): Promise<AuditTarget | null> {
   const targets = tabs
     .map((tab) => ({
       target: auditTargetFromTab(tab),
-      lastAccessed: (tab as typeof tab & { lastAccessed?: number }).lastAccessed ?? 0,
+      lastAccessed:
+        (tab as typeof tab & { lastAccessed?: number }).lastAccessed ?? 0,
     }))
-    .filter((row): row is { target: AuditTarget; lastAccessed: number } => Boolean(row.target))
+    .filter((row): row is { target: AuditTarget; lastAccessed: number } =>
+      Boolean(row.target),
+    )
     .sort((a, b) => b.lastAccessed - a.lastAccessed);
   recentAuditTarget = targets[0]?.target ?? null;
   return recentAuditTarget;
 }
 
-function progressReporter(requestId: unknown): ((update: ScanProgressUpdate) => void) | undefined {
+function progressReporter(
+  requestId: unknown,
+): ((update: ScanProgressUpdate) => void) | undefined {
   if (typeof requestId !== "string" || !requestId) return undefined;
   return (update) => {
     void browser.runtime
@@ -124,7 +169,11 @@ export default defineBackground(() => {
   startBillingBackground();
   installRequestCapture();
   void installWatchedSiteSchedule().catch((error: unknown) => {
-    console.error(error instanceof Error ? error.message : "Could not initialize watched-site schedule");
+    console.error(
+      error instanceof Error
+        ? error.message
+        : "Could not initialize watched-site schedule",
+    );
   });
   void refreshActiveTabBadge();
   void browser.tabs
@@ -150,25 +199,45 @@ export default defineBackground(() => {
       void browser.tabs
         .get(info.tabId)
         .then((tab) => {
-          void applyBadgeForUrl(tab.url);
-          if (tab.status === "complete") scheduleAutomaticScan(info.tabId, tab.url);
+          void applyBadgeForUrl(tab.url, tab.id);
+          if (tab.status === "complete")
+            scheduleAutomaticScan(info.tabId, tab.url);
         })
         .catch(() => undefined);
     });
   }
   if (browser.tabs?.onUpdated) {
     browser.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
+      if (changeInfo.url || changeInfo.status === "loading")
+        cancelAutomaticScan(_tabId);
       if (!tab.active) return;
       const target = auditTargetFromTab(tab);
       if (target) recentAuditTarget = target;
       if (changeInfo.status !== "complete" && !changeInfo.url) return;
-      void applyBadgeForUrl(tab.url);
-      if (changeInfo.status === "complete") scheduleAutomaticScan(_tabId, tab.url);
+      void applyBadgeForUrl(tab.url, tab.id);
+      if (changeInfo.status === "complete")
+        scheduleAutomaticScan(_tabId, tab.url);
     });
   }
-  if (browser.tabs?.onRemoved) {
-    browser.tabs.onRemoved.addListener((tabId) => cancelAutomaticScan(tabId));
-  }
+
+  browser.tabs.onRemoved.addListener((tabId) => {
+    cancelAutomaticScan(tabId);
+    forgetActionState(tabId);
+  });
+  browser.permissions.onRemoved.addListener(() => {
+    void browser.permissions
+      .contains({ origins: ["*://*/*"] })
+      .then(async (allowed) => {
+        if (allowed) return;
+        for (const tabId of automaticScanTimers.keys())
+          cancelAutomaticScan(tabId);
+        await setAutomaticProtectionEnabled(false);
+        await browser.runtime
+          .sendMessage({ type: "PROTECTION_UPDATED" })
+          .catch(() => {});
+      })
+      .catch(() => {});
+  });
 
   if (browser.notifications?.onClicked) {
     browser.notifications.onClicked.addListener((notificationId) => {
@@ -182,26 +251,68 @@ export default defineBackground(() => {
         void openDashboard(`/graph/${follow[1]}`);
         return;
       }
+      if (notificationId.startsWith("linkscope-digest-")) {
+        void openDashboard("/");
+        return;
+      }
       const match = /^linkscope-diff-(\d+)-(\d+)$/.exec(notificationId);
       if (!match) {
         void openDashboard();
         return;
       }
-      const url = browser.runtime.getURL(`/app.html#/diff/${match[1]}/${match[2]}`);
+      const url = browser.runtime.getURL(
+        `/app.html#/diff/${match[1]}/${match[2]}`,
+      );
       void browser.tabs.create({ url });
     });
   }
 
   browser.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === CHANGE_NOTIFICATION_ALARM)
+      void deliverPendingNotifications().catch(console.error);
     if (alarm.name === WATCHED_SITE_ALARM) {
-      void runDueWatchedSites().then(() => maybeNotifyWeeklyDigest());
+      void runDueWatchedSites()
+        .then(() => deliverPendingNotifications())
+        .then(() => maybeNotifyWeeklyDigest())
+        .catch(console.error);
     }
   });
 
   browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type === "PROTECTION_UPDATED") {
+      for (const tabId of automaticScanTimers.keys())
+        cancelAutomaticScan(tabId);
+      void automaticProtectionEnabled()
+        .then(async (enabled) => {
+          if (enabled) {
+            const [tab] = await browser.tabs.query({
+              active: true,
+              currentWindow: true,
+            });
+            if (tab?.id !== undefined && tab.status === "complete")
+              scheduleAutomaticScan(tab.id, tab.url);
+          }
+          sendResponse({ ok: true });
+        })
+        .catch(() => sendResponse({ ok: false }));
+      return true;
+    }
+    if (message?.type === "SET_USAGE_CONSENT") {
+      void setUsageConsent(message.enabled === true)
+        .then(() => sendResponse({ ok: true }))
+        .catch(() =>
+          sendResponse({ ok: false, error: "Could not update usage consent." }),
+        );
+      return true;
+    }
     if (message?.type === "SCAN_ACTIVE_TAB") {
       void getBillingStatus()
-        .then((billing) => scanActiveTab({ extendedHistory: billing.paid, onProgress: progressReporter(message.requestId) }))
+        .then((billing) =>
+          scanActiveTab({
+            extendedHistory: billing.paid,
+            onProgress: progressReporter(message.requestId),
+          }),
+        )
         .then((scanId) => sendResponse({ ok: true, scanId }))
         .catch((error: unknown) =>
           sendResponse({
@@ -212,19 +323,23 @@ export default defineBackground(() => {
       return true;
     }
 
-    if (message?.type === "SCAN_QUIET") {
-      const tabId = typeof message.tabId === "number" ? message.tabId : undefined;
+    if (message?.type === "GRADE_ACTIVE_TAB") {
+      const tabId =
+        typeof message.tabId === "number" ? message.tabId : undefined;
       const url = typeof message.url === "string" ? message.url : undefined;
-      void getBillingStatus()
-        .then((billing) => scanActiveTab({
-          openReport: false,
-          tabId,
-          url,
-          notifyIfNew: false,
-          force: true,
-          extendedHistory: billing.paid,
-          onProgress: progressReporter(message.requestId),
-        }))
+      // A quick one-page scan is free and local. Do not block it on the
+      // optional billing provider; billing is only needed for extended or
+      // multi-page features.
+      void scanActiveTab({
+        openReport: false,
+        tabId,
+        url,
+        notifyIfNew: false,
+        force: true,
+        extendedHistory: false,
+        allFrames: false,
+        onProgress: progressReporter(message.requestId),
+      })
         .then((scanId) => sendResponse({ ok: true, scanId }))
         .catch((error: unknown) =>
           sendResponse({
@@ -241,20 +356,27 @@ export default defineBackground(() => {
         .catch((error: unknown) =>
           sendResponse({
             ok: false,
-            error: error instanceof Error ? error.message : "Could not find a site to audit",
+            error:
+              error instanceof Error
+                ? error.message
+                : "Could not find a site to audit",
           }),
         );
       return true;
     }
 
     if (message?.type === "RUN_SITE_AUDIT") {
-      const auditId = typeof message.auditId === "number" ? message.auditId : NaN;
-      const requestId = typeof message.requestId === "string" ? message.requestId : "";
+      const auditId =
+        typeof message.auditId === "number" ? message.auditId : NaN;
+      const requestId =
+        typeof message.requestId === "string" ? message.requestId : "";
       let task = runningAudits.get(auditId);
       if (!task) {
         task = runAudit(auditId, {
           onProgress: (progress) => {
-            void browser.runtime.sendMessage({ type: "AUDIT_PROGRESS", requestId, progress }).catch(() => undefined);
+            void browser.runtime
+              .sendMessage({ type: "AUDIT_PROGRESS", requestId, progress })
+              .catch(() => undefined);
           },
         }).finally(() => runningAudits.delete(auditId));
         runningAudits.set(auditId, task);
@@ -271,21 +393,33 @@ export default defineBackground(() => {
     }
 
     if (message?.type === "CANCEL_SITE_AUDIT") {
-      const auditId = typeof message.auditId === "number" ? message.auditId : NaN;
+      const auditId =
+        typeof message.auditId === "number" ? message.auditId : NaN;
       void requestAuditCancellation(auditId)
         .then(() => sendResponse({ ok: true }))
         .catch((error: unknown) =>
-          sendResponse({ ok: false, error: error instanceof Error ? error.message : "Could not stop audit" }),
+          sendResponse({
+            ok: false,
+            error:
+              error instanceof Error ? error.message : "Could not stop audit",
+          }),
         );
       return true;
     }
 
     if (message?.type === "WATCH_ACTIVE_TAB") {
       void getBillingStatus()
-        .then((status) => runProAction(status, "deep-scan", () => watchActiveTab(undefined, true)))
+        .then((status) =>
+          runProAction(status, "deep-scan", () =>
+            watchActiveTab(undefined, true),
+          ),
+        )
         .then(() => sendResponse({ ok: true }))
         .catch((error: unknown) =>
-          sendResponse({ ok: false, error: error instanceof Error ? error.message : "Watch failed" }),
+          sendResponse({
+            ok: false,
+            error: error instanceof Error ? error.message : "Watch failed",
+          }),
         );
       return true;
     }
@@ -294,17 +428,31 @@ export default defineBackground(() => {
       void getBillingStatus(Boolean(message.force))
         .then((status) => sendResponse({ ok: true, status }))
         .catch((error: unknown) =>
-          sendResponse({ ok: false, error: error instanceof Error ? error.message : "Could not check subscription" }),
+          sendResponse({
+            ok: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Could not check subscription",
+          }),
         );
       return true;
     }
 
-    if (message?.type === "OPEN_PRO_CHECKOUT" || message?.type === "OPEN_PRO_LOGIN") {
-      const action = message.type === "OPEN_PRO_CHECKOUT" ? openProCheckout : openProLogin;
+    if (
+      message?.type === "OPEN_PRO_CHECKOUT" ||
+      message?.type === "OPEN_PRO_LOGIN"
+    ) {
+      const action =
+        message.type === "OPEN_PRO_CHECKOUT" ? openProCheckout : openProLogin;
       void action()
         .then(() => sendResponse({ ok: true }))
         .catch((error: unknown) =>
-          sendResponse({ ok: false, error: error instanceof Error ? error.message : "Could not open billing" }),
+          sendResponse({
+            ok: false,
+            error:
+              error instanceof Error ? error.message : "Could not open billing",
+          }),
         );
       return true;
     }
@@ -313,26 +461,42 @@ export default defineBackground(() => {
       void Promise.all([listWatchedSites(), getBillingStatus()])
         .then(([sites, billing]) => sendResponse({ ok: true, sites, billing }))
         .catch((error: unknown) =>
-          sendResponse({ ok: false, error: error instanceof Error ? error.message : "Could not load watched sites" }),
+          sendResponse({
+            ok: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Could not load watched sites",
+          }),
         );
       return true;
     }
 
     if (message?.type === "ADD_WATCHED_SITE") {
       const url = typeof message.url === "string" ? message.url : "";
-      const schedule: WatchedSiteSchedule = message.schedule === "weekly" ? "weekly" : "daily";
+      const schedule: WatchedSiteSchedule =
+        message.schedule === "visit"
+          ? "visit"
+          : message.schedule === "weekly"
+            ? "weekly"
+            : "daily";
       void Promise.all([listWatchedSites(), getBillingStatus()])
         .then(async ([sites, billing]) => {
           const target = normalizeWatchedSiteUrl(url);
-          if (!billing.paid && sites.length >= 1 && !sites.some((site) => site.domain === target.domain)) {
-            requirePro(billing, "unlimited-watched-sites");
-          }
+          requirePro(billing, "scheduled-checks");
           const site = await addWatchedSite(url, schedule);
-          const scanId = await runWatchedSite(site);
+          const scanId =
+            schedule === "visit" ? undefined : await runWatchedSite(site);
           sendResponse({ ok: true, site: { ...site, lastScanId: scanId } });
         })
         .catch((error: unknown) =>
-          sendResponse({ ok: false, error: error instanceof Error ? error.message : "Could not add watched site" }),
+          sendResponse({
+            ok: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Could not add watched site",
+          }),
         );
       return true;
     }
@@ -347,22 +511,45 @@ export default defineBackground(() => {
           sendResponse({ ok: true, scanId });
         })
         .catch((error: unknown) =>
-          sendResponse({ ok: false, error: error instanceof Error ? error.message : "Could not scan watched site" }),
+          sendResponse({
+            ok: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Could not scan watched site",
+          }),
         );
       return true;
     }
 
     if (message?.type === "UPDATE_WATCHED_SITE") {
       const domain = typeof message.domain === "string" ? message.domain : "";
-      const schedule: WatchedSiteSchedule = message.schedule === "weekly" ? "weekly" : "daily";
+      const schedule: WatchedSiteSchedule =
+        message.schedule === "visit"
+          ? "visit"
+          : message.schedule === "weekly"
+            ? "weekly"
+            : "daily";
       void getBillingStatus()
         .then((billing) => {
           requirePro(billing, "scheduled-checks");
+          if (
+            message.alertMode === "important" ||
+            message.alertMode === "all" ||
+            message.alertMode === "never"
+          )
+            return updateWatchedSiteAlertMode(domain, message.alertMode);
           return updateWatchedSiteSchedule(domain, schedule);
         })
         .then(() => sendResponse({ ok: true }))
         .catch((error: unknown) =>
-          sendResponse({ ok: false, error: error instanceof Error ? error.message : "Could not update schedule" }),
+          sendResponse({
+            ok: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Could not update schedule",
+          }),
         );
       return true;
     }
@@ -372,7 +559,13 @@ export default defineBackground(() => {
       void removeWatchedSite(domain)
         .then(() => sendResponse({ ok: true }))
         .catch((error: unknown) =>
-          sendResponse({ ok: false, error: error instanceof Error ? error.message : "Could not remove watched site" }),
+          sendResponse({
+            ok: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Could not remove watched site",
+          }),
         );
       return true;
     }
@@ -384,7 +577,10 @@ export default defineBackground(() => {
         .catch((error: unknown) =>
           sendResponse({
             ok: false,
-            error: error instanceof Error ? error.message : "Could not open dashboard",
+            error:
+              error instanceof Error
+                ? error.message
+                : "Could not open dashboard",
           }),
         );
       return true;
@@ -397,7 +593,10 @@ export default defineBackground(() => {
         .catch((error: unknown) =>
           sendResponse({
             ok: false,
-            error: error instanceof Error ? error.message : "Could not follow domain",
+            error:
+              error instanceof Error
+                ? error.message
+                : "Could not follow domain",
           }),
         );
       return true;
@@ -410,7 +609,8 @@ export default defineBackground(() => {
         .catch((error: unknown) =>
           sendResponse({
             ok: false,
-            error: error instanceof Error ? error.message : "Could not block domain",
+            error:
+              error instanceof Error ? error.message : "Could not block domain",
           }),
         );
       return true;

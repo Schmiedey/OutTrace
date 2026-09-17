@@ -1,6 +1,6 @@
 import { isTrackerCategory } from "@/src/analysis/categorizer";
 import { enrichSnapshot } from "@/src/analysis/enrich";
-import { gradeFromScore, type PrivacyGrade } from "@/src/analysis/score";
+import { gradeFromScore, scoreSnapshot, scoreFromScan, type PrivacyGrade } from "@/src/analysis/score";
 import type { DomainCategory, GraphNodeRecord, ScanGraphSnapshot, ScanRow } from "@/src/types/graph";
 
 export type NutritionCounts = {
@@ -76,8 +76,7 @@ export function mixFromCounts(counts: NutritionCounts): Array<{ category: Domain
 export function nutritionFromSnapshot(snapshot: ScanGraphSnapshot, privacyScore?: number): SiteNutrition {
   const graph = enrichSnapshot(snapshot);
   const counts = countsFromNodes(graph.nodes);
-  const resolvedScore =
-    privacyScore ?? Math.max(0, 100 - Math.min(45, counts.trackers * 5) - Math.min(15, counts.unknown * 2));
+  const resolvedScore = scoreSnapshot(snapshot).score;
   return {
     privacy: gradeFromScore(resolvedScore),
     privacyScore: resolvedScore,
@@ -99,7 +98,7 @@ export function nutritionFromScan(scan: ScanRow, snapshot?: ScanGraphSnapshot): 
     unknown: scan.unknownCount ?? 0,
     media: 0,
   };
-  const score = scan.privacyScore ?? Math.max(0, 100 - Math.min(45, scan.trackerCount * 5));
+  const score = scoreFromScan(scan).score;
   return {
     privacy: gradeFromScore(score),
     privacyScore: score,

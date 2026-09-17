@@ -1,6 +1,7 @@
 import { db } from "@/src/storage/database";
 import { getScanGraph, getSiteByDomain, listScansForSite, listSites } from "@/src/storage/scans";
 import type { DomainRow, ScanGraphSnapshot, ScanRow, SiteRow } from "@/src/types/graph";
+import type { AlertRow } from "@/src/types/graph";
 
 export type SiteGlance = {
   site: SiteRow;
@@ -10,6 +11,7 @@ export type SiteGlance = {
   previousGraph?: ScanGraphSnapshot;
   siteCount: number;
   watched: boolean;
+  activity: AlertRow[];
 };
 
 export async function getSiteGlance(domain: string): Promise<SiteGlance | null> {
@@ -19,11 +21,12 @@ export async function getSiteGlance(domain: string): Promise<SiteGlance | null> 
   const latest = scans[0];
   if (!latest) return null;
   const previous = scans[1];
-  const [latestGraph, previousGraph, sites, watched] = await Promise.all([
+  const [latestGraph, previousGraph, sites, watched, activity] = await Promise.all([
     latest.id !== undefined ? getScanGraph(latest.id) : Promise.resolve(undefined),
     previous?.id !== undefined ? getScanGraph(previous.id) : Promise.resolve(undefined),
     listSites(),
     db.watchedSites.get(domain),
+    db.alerts.where("siteId").equals(site.id).filter((alert) => !alert.read && alert.toScanId <= (latest.id ?? 0)).toArray(),
   ]);
   return {
     site,
@@ -33,6 +36,7 @@ export async function getSiteGlance(domain: string): Promise<SiteGlance | null> 
     previousGraph,
     siteCount: sites.length,
     watched: Boolean(watched?.enabled),
+    activity,
   };
 }
 

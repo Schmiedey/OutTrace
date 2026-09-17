@@ -8,11 +8,19 @@ import {
   type ScanGraphSnapshot,
 } from "@/src/types/graph";
 
-function measureWidth(label: string, min: number, max: number, pad: number): number {
+function measureWidth(
+  label: string,
+  min: number,
+  max: number,
+  pad: number,
+): number {
   return Math.max(min, Math.min(max, Math.round(label.length * 7.6 + pad)));
 }
 
-function originIdOf(snapshot: ScanGraphSnapshot, nodes: ScanGraphSnapshot["nodes"]): string | null {
+function originIdOf(
+  snapshot: ScanGraphSnapshot,
+  nodes: ScanGraphSnapshot["nodes"],
+): string | null {
   return (
     nodes.find((node) => node.isOrigin)?.domain ??
     nodes.find((node) => node.domain === snapshot.originDomain)?.domain ??
@@ -20,7 +28,13 @@ function originIdOf(snapshot: ScanGraphSnapshot, nodes: ScanGraphSnapshot["nodes
   );
 }
 
-const TREE_GROUPS = ["site", "trackers", "social", "media", "services"] as const;
+const TREE_GROUPS = [
+  "site",
+  "trackers",
+  "social",
+  "media",
+  "services",
+] as const;
 type TreeGroup = (typeof TREE_GROUPS)[number];
 
 const TREE_GROUP_META: Record<TreeGroup, { label: string; color: string }> = {
@@ -32,7 +46,8 @@ const TREE_GROUP_META: Record<TreeGroup, { label: string; color: string }> = {
 };
 
 function treeGroupOf(node: GraphNodeRecord, origin: string): TreeGroup {
-  const firstParty = node.isFirstParty || isFirstPartyDomain(origin, node.domain);
+  const firstParty =
+    node.isFirstParty || isFirstPartyDomain(origin, node.domain);
   if (firstParty) return "site";
   if (TRACKER_CATEGORIES.has(node.category)) return "trackers";
   if (node.category === "social") return "social";
@@ -151,7 +166,10 @@ export function nodesInTreeGroup(
   if (!TREE_GROUPS.includes(group)) return [];
   return nodes
     .filter((node) => !node.isOrigin && treeGroupOf(node, origin) === group)
-    .sort((a, b) => b.referenceCount - a.referenceCount || a.domain.localeCompare(b.domain));
+    .sort(
+      (a, b) =>
+        b.referenceCount - a.referenceCount || a.domain.localeCompare(b.domain),
+    );
 }
 
 export function treePathIds(
@@ -159,7 +177,11 @@ export function treePathIds(
   snapshot: ScanGraphSnapshot,
   nodes: ScanGraphSnapshot["nodes"],
 ): string[] {
-  const origin = originIdOf(snapshot, nodes) ?? (snapshot.originDomain === "global" ? "__tree-root" : snapshot.originDomain);
+  const origin =
+    originIdOf(snapshot, nodes) ??
+    (snapshot.originDomain === "global"
+      ? "__tree-root"
+      : snapshot.originDomain);
   if (selected === origin) return [selected];
   const node = nodes.find((item) => item.domain === selected);
   if (!node) return [origin, selected];
@@ -184,12 +206,19 @@ export function buildTreeElements(
   }
 
   for (const list of grouped.values()) {
-    list.sort((a, b) => b.referenceCount - a.referenceCount || a.domain.localeCompare(b.domain));
+    list.sort(
+      (a, b) =>
+        b.referenceCount - a.referenceCount || a.domain.localeCompare(b.domain),
+    );
   }
 
   const groups = TREE_GROUPS.filter((group) => grouped.has(group));
   const originLabel =
-    originId && originId !== "global" ? originId : snapshot.originDomain === "global" ? "All sites" : snapshot.originDomain;
+    originId && originId !== "global"
+      ? originId
+      : snapshot.originDomain === "global"
+        ? "All sites"
+        : snapshot.originDomain;
   const originDataId = originId ?? "__tree-root";
   const originW = measureWidth(originLabel, 180, 320, 64);
   const originH = originLabel.length > 22 ? 64 : 52;
@@ -237,11 +266,17 @@ export function buildTreeElements(
     });
     elements.push({
       group: "edges",
-      data: { id: `tree-edge:${originDataId}:${groupId}`, source: originDataId, target: groupId, color: accent },
+      data: {
+        id: `tree-edge:${originDataId}:${groupId}`,
+        source: originDataId,
+        target: groupId,
+        color: accent,
+      },
     });
 
     children.forEach((node, leafIndex) => {
-      const category: DomainCategory = node.category === "origin" ? "unknown" : node.category;
+      const category: DomainCategory =
+        node.category === "origin" ? "unknown" : node.category;
       const accentColor = VIZ_CATEGORY_COLORS[category];
       const leafW = measureWidth(node.domain, 140, 280, 36);
       elements.push({
@@ -275,9 +310,13 @@ export function buildTreeElements(
   return elements;
 }
 
-export function runTreeLayout(cy: Core): void {
+export function runTreeLayout(cy: Core, animate = true): void {
   const origin = cy.nodes(".origin").first();
-  const groups = cy.nodes(".tree-group").sort((a, b) => Number(a.data("order") ?? 0) - Number(b.data("order") ?? 0));
+  const groups = cy
+    .nodes(".tree-group")
+    .sort(
+      (a, b) => Number(a.data("order") ?? 0) - Number(b.data("order") ?? 0),
+    );
   const positions = new Map<string, { x: number; y: number }>();
 
   const row = 44;
@@ -289,7 +328,9 @@ export function runTreeLayout(cy: Core): void {
   groups.forEach((group) => {
     const leaves = group
       .outgoers("node")
-      .sort((a, b) => Number(a.data("order") ?? 0) - Number(b.data("order") ?? 0));
+      .sort(
+        (a, b) => Number(a.data("order") ?? 0) - Number(b.data("order") ?? 0),
+      );
     const start = y;
     leaves.forEach((leaf, index) => {
       positions.set(leaf.id(), { x: leafX, y: start + index * row });
@@ -305,13 +346,14 @@ export function runTreeLayout(cy: Core): void {
     positions.set(origin.id(), { x: 0, y: mid });
   }
 
-  const positionMap: Record<string, { x: number; y: number }> = Object.fromEntries(positions);
+  const positionMap: Record<string, { x: number; y: number }> =
+    Object.fromEntries(positions);
 
   cy.layout({
     name: "preset",
     positions: positionMap,
-    animate: true,
-    animationDuration: 560,
+    animate,
+    animationDuration: animate ? 560 : 0,
     animationEasing: "ease-out",
     fit: true,
     padding: 80,

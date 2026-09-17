@@ -37,20 +37,20 @@ export function AuditSiteCard() {
     <section className="rounded-md border border-line bg-panel px-5 py-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-[11px] tracking-[0.14em] text-mute uppercase">Audit site</p>
+          <p className="text-[11px] tracking-[0.14em] text-mute uppercase">Optional site audit</p>
           <h2 className="font-display mt-1 text-2xl">
-            {auditTarget === undefined ? "Finding your current site…" : auditTarget?.domain ?? "Open a website to begin"}
+            {auditTarget === undefined ? "Start a multi-page audit" : auditTarget?.domain ?? "Choose a website"}
           </h2>
           <p className="mt-1 max-w-xl text-[13px] leading-relaxed text-mute">
             {auditTarget === undefined
-              ? "Checking your open tabs for a site LinkScope can audit."
+              ? "This is separate from normal page checks. Choose a website when you want LinkScope to crawl several pages."
               : auditTarget
                 ? "Crawl the site in one background tab and measure which services appear across its pages."
-                : "Open a regular website in another tab, then return here to audit it."}
+                : "Open a regular website in another tab, then return here to configure its audit."}
           </p>
         </div>
         <Button className="shrink-0" disabled={!auditTarget} onClick={openAuditSetup}>
-          Audit entire site
+          Configure audit
         </Button>
       </div>
     </section>

@@ -5,6 +5,10 @@ import type { ScanGraphSnapshot, ScanRow } from "@/src/types/graph";
 export type PrivacyGrade = "A" | "B" | "C" | "D" | "F";
 
 export type PrivacyScore = {
+  modelVersion: 2;
+  confidence: "limited" | "classified";
+  domainPenalty: number;
+  executionPenalty: number;
   score: number;
   grade: PrivacyGrade;
   trackers: number;
@@ -33,9 +37,13 @@ export function scoreTone(grade: PrivacyGrade): "lime" | "ink" | "amber" | "rose
 
 export function scoreSnapshot(snapshot: ScanGraphSnapshot): PrivacyScore {
   const graph = enrichSnapshot(snapshot);
-  const third = graph.nodes.filter((node) => !node.isOrigin && !node.isFirstParty);
+  // Hyperlinks describe destinations, not resources loaded by this page.
+  const resourceDomains = new Set(graph.edges.filter((edge) => edge.type !== "link").map((edge) => edge.target));
+  const third = Array.from(new Map(graph.nodes.filter((node) => !node.isOrigin && !node.isFirstParty && resourceDomains.has(node.domain)).map((node) => [node.domain, node])).values());
   const thirdSet = new Set(third.map((node) => node.domain));
-  const trackers = third.filter((node) => isTrackerCategory(node.category)).length;
+  const trackerNodes = third.filter((node) => isTrackerCategory(node.category));
+  const trackers = trackerNodes.length;
+  const trackerSet = new Set(trackerNodes.map((node) => node.domain));
   const unknown = third.filter((node) => node.category === "unknown").length;
   const iframeCount = new Set(
     graph.edges.filter((edge) => edge.type === "iframe" && thirdSet.has(edge.target)).map((edge) => edge.target),
@@ -43,26 +51,24 @@ export function scoreSnapshot(snapshot: ScanGraphSnapshot): PrivacyScore {
   const scriptEdges = graph.edges.filter((edge) => edge.type === "script");
   const thirdPartyScripts = scriptEdges.filter((edge) => thirdSet.has(edge.target)).length;
   const totalScripts = scriptEdges.length;
-  const scriptRatio = totalScripts > 0 ? thirdPartyScripts / totalScripts : 0;
 
-  let penalty = 0;
-  penalty += Math.min(45, trackers * 5);
-  penalty += Math.min(15, unknown * 2);
-  penalty += Math.min(15, iframeCount * 3);
-  penalty += Math.round(scriptRatio * 20);
-  if (third.length > 20) penalty += Math.min(10, Math.floor((third.length - 20) / 5));
+  const domainPenalty = Math.min(80, trackerNodes.reduce((sum, node) => sum + (node.classificationSource === "heuristic" ? 4 : 8), 0));
+  const executingTrackers = new Set(graph.edges.filter((edge) => ["script", "iframe"].includes(edge.type) && trackerSet.has(edge.target)).map((edge) => edge.target));
+  const executionPenalty = Math.min(20, executingTrackers.size * 2);
+  const penalty = domainPenalty + executionPenalty;
 
   const score = Math.max(0, Math.min(100, 100 - penalty));
   const reasons: string[] = [];
-  if (trackers > 0) reasons.push(`${String(trackers)} tracker ${trackers === 1 ? "domain" : "domains"}`);
-  if (unknown > 0) reasons.push(`${String(unknown)} unclassified third ${unknown === 1 ? "party" : "parties"}`);
-  if (iframeCount > 0) reasons.push(`${String(iframeCount)} third-party ${iframeCount === 1 ? "iframe" : "iframes"}`);
-  if (totalScripts > 0 && scriptRatio >= 0.4) {
-    reasons.push(`${String(Math.round(scriptRatio * 100))}% of scripts are third-party`);
-  }
-  if (reasons.length === 0) reasons.push("Most of this page stays on first-party infrastructure.");
+  if (trackers > 0) reasons.push(`${trackers} classified tracking ${trackers === 1 ? "domain" : "domains"}: −${domainPenalty} points`);
+  if (executingTrackers.size > 0) reasons.push(`Tracking scripts/frames: −${executionPenalty} points`);
+  if (unknown > 0) reasons.push(`${unknown} unclassified resource ${unknown === 1 ? "domain is" : "domains are"} not scored; unknown does not mean safe`);
+  if (trackers === 0) reasons.push("No classified tracking resources found in this capture; this is not a safety guarantee.");
 
   return {
+    modelVersion: 2,
+    confidence: unknown > 0 || trackerNodes.some((node) => node.classificationSource === "heuristic") ? "limited" : "classified",
+    domainPenalty,
+    executionPenalty,
     score,
     grade: gradeFromScore(score),
     trackers,
@@ -76,12 +82,22 @@ export function scoreSnapshot(snapshot: ScanGraphSnapshot): PrivacyScore {
 }
 
 export function scoreFromScan(scan: ScanRow): { score: number; grade: PrivacyGrade } {
-  if (scan.privacyScore !== undefined) {
+  if (scan.privacyScore !== undefined && scan.scoreVersion === 2) {
     return { score: scan.privacyScore, grade: gradeFromScore(scan.privacyScore) };
   }
-  let penalty = Math.min(45, scan.trackerCount * 5);
-  penalty += Math.min(20, Math.max(0, scan.thirdPartyCount - scan.trackerCount));
-  if (scan.thirdPartyCount > 20) penalty += Math.min(10, Math.floor((scan.thirdPartyCount - 20) / 5));
+  const penalty = Math.min(80, scan.trackerCount * 8);
   const score = Math.max(0, Math.min(100, 100 - penalty));
   return { score, grade: gradeFromScore(score) };
+}
+
+export function scoreVerdict(result: Pick<PrivacyScore, "score" | "trackers" | "unknown">): string {
+  if (result.trackers === 0) return result.unknown > 0 ? "No classified tracking · limited visibility" : "No classified tracking found";
+  if (result.score >= 70) return "Limited tracking exposure";
+  if (result.score >= 40) return "Noticeable tracking exposure";
+  return "Heavy tracking exposure";
+}
+
+export function scoreSummary(result: Pick<PrivacyScore, "trackers" | "unknown">): string {
+  const tracking = result.trackers === 0 ? "No classified tracking resources found in this capture." : `This capture references ${result.trackers} classified tracking ${result.trackers === 1 ? "domain" : "domains"}.`;
+  return result.unknown > 0 ? `${tracking} ${result.unknown} resource ${result.unknown === 1 ? "domain remains" : "domains remain"} unclassified.` : tracking;
 }

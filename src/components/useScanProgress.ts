@@ -7,7 +7,7 @@ import {
 const STARTING_PROGRESS: ScanProgressUpdate = {
   phase: "preparing",
   percent: 4,
-  label: "Starting audit…",
+  label: "Starting quick scan…",
 };
 
 export function useScanProgress() {
@@ -17,7 +17,10 @@ export function useScanProgress() {
   useEffect(() => {
     if (typeof browser === "undefined" || !browser.runtime?.onMessage) return;
     const listener = (message: unknown): undefined => {
-      if (!isScanProgressMessage(message) || message.requestId !== requestIdRef.current) {
+      if (
+        !isScanProgressMessage(message) ||
+        message.requestId !== requestIdRef.current
+      ) {
         return undefined;
       }
       setProgress({
@@ -39,7 +42,15 @@ export function useScanProgress() {
   }, []);
 
   const complete = useCallback((): void => {
-    setProgress({ phase: "complete", percent: 100, label: "Audit complete" });
+    setProgress({
+      phase: "complete",
+      percent: 100,
+      label: "Quick scan complete",
+    });
+  }, []);
+
+  const update = useCallback((next: ScanProgressUpdate): void => {
+    setProgress(next);
   }, []);
 
   const reset = useCallback((): void => {
@@ -47,5 +58,5 @@ export function useScanProgress() {
     setProgress(null);
   }, []);
 
-  return { progress, begin, complete, reset };
+  return { progress, begin, update, complete, reset };
 }

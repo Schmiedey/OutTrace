@@ -12,18 +12,18 @@ const BENEFITS = [
   },
   {
     icon: Eye,
-    title: "Catch what quick scans miss",
-    description: "Watch requests for 15 seconds and inspect embedded, cross-origin frames.",
+    title: "A useful recurring digest",
+    description: "Get native browser summaries when watched sites change, without a cloud dashboard.",
   },
   {
     icon: Clock3,
-    title: "Keep a longer paper trail",
-    description: "Compare up to 1,000 scans across one year instead of 20 scans across 30 days.",
+    title: "Follow changes over time",
+    description: "Compare monitored sites and spot new tracking connections across visits.",
   },
   {
     icon: Database,
-    title: "Watch and export without limits",
-    description: "Monitor unlimited sites and export your scans for reporting or deeper analysis.",
+    title: "Report across your watchlist",
+    description: "Monitor unlimited sites and bulk-export multi-site evidence. Single-page scans and share cards stay free.",
   },
 ] as const;
 
@@ -131,7 +131,7 @@ export function UpgradeDialog({ open, status, onClose, onStatusChange }: Upgrade
             <p className="font-display mt-2 text-4xl">$8</p>
             <p className="text-[12px] text-mute">per month</p>
             <ul className="mt-6 space-y-2.5 text-[12px]">
-              {["Unlimited watched sites", "Daily or weekly checks", "Change alerts and diffs", "Deep scans", "One-year history + export"].map((item) => (
+              {["Unlimited watched sites", "Daily or weekly checks", "Native digests", "Change alerts and diffs", "Deep audits + multi-site export"].map((item) => (
                 <li key={item} className="flex items-start gap-2">
                   <Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <span>{item}</span>

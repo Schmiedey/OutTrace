@@ -101,6 +101,8 @@ export type CaptureMode = "snapshot" | "watch" | "scheduled" | "automatic";
 
 export type ScanRow = {
   id?: number;
+  /** Explicitly saved scans are exempt from automatic history cleanup. */
+  savedAt?: number;
   siteId: number;
   url: string;
   title: string;
@@ -113,6 +115,7 @@ export type ScanRow = {
   captureMode?: CaptureMode;
   durationMs?: number;
   privacyScore?: number;
+  scoreVersion?: number;
   unknownCount?: number;
   iframeCount?: number;
 };
@@ -133,9 +136,14 @@ export type AlertRow = {
   removedDomains?: string[];
   trackerDelta: number;
   read: boolean;
+  importance?: import("@/src/analysis/changeImportance").ChangeImportance;
+  reasons?: import("@/src/analysis/changeImportance").ChangeReason[];
+  fingerprint?: string;
+  notifiedAt?: number;
+  digestedAt?: number;
 };
 
-export type WatchedSiteSchedule = "daily" | "weekly";
+export type WatchedSiteSchedule = "visit" | "daily" | "weekly";
 
 export type WatchedSiteRow = {
   domain: string;
@@ -147,6 +155,7 @@ export type WatchedSiteRow = {
   lastRunAt?: number;
   lastScanId?: number;
   lastError?: string;
+  alertMode?: "important" | "all" | "never";
 };
 
 export type SettingRow = {

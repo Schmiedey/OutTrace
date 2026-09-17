@@ -1,10 +1,11 @@
 import { scoreSnapshot } from "@/src/analysis/score";
 import { normalizeScan } from "@/src/extension/normalize";
-import { notifyFollowedSeen, recordScanAlert } from "@/src/storage/alerts";
+import { recordScanAlert } from "@/src/storage/alerts";
 import { exportArchive } from "@/src/storage/archive";
 import { db } from "@/src/storage/database";
 import { listFollowedDomains } from "@/src/storage/follows";
 import { pruneSnapshots } from "@/src/storage/retention";
+import { noteUsage } from "@/src/telemetry/usage";
 import type {
   CaptureMode,
   ConnectionType,
@@ -80,6 +81,7 @@ export async function persistScan(raw: RawScanPayload, options: PersistScanOptio
       captureMode: options.captureMode ?? "snapshot",
       durationMs: options.durationMs,
       privacyScore: scored.score,
+      scoreVersion: scored.modelVersion,
       unknownCount: scored.unknown,
       iframeCount: scored.iframeCount,
     });
@@ -164,16 +166,10 @@ export async function persistScan(raw: RawScanPayload, options: PersistScanOptio
   const next = await getScan(scanId);
   const nextGraph = await getScanGraph(scanId);
   if (next && nextGraph) {
-    await recordScanAlert(previous, next, nextGraph, previousGraph, watched);
-    if (newFollowHits.length > 0) {
-      await notifyFollowedSeen({
-        domain: next.domain,
-        scanId,
-        followed: newFollowHits,
-      });
-    }
+    await recordScanAlert(previous, next, nextGraph, previousGraph, watched, newFollowHits);
   }
   await pruneSnapshots(Date.now(), options.extendedHistory);
+  if (!options.captureMode || options.captureMode === "snapshot" || options.captureMode === "watch") noteUsage("manual-scan");
 
   return scanId;
 }
@@ -191,6 +187,10 @@ export async function getScanGraph(scanId: number): Promise<ScanGraphSnapshot | 
     nodes: row.nodes,
     edges: row.edges,
   };
+}
+
+export async function listAllScans(): Promise<ScanRow[]> {
+  return db.scans.orderBy("timestamp").reverse().toArray();
 }
 
 export async function listRecentScans(limit = 40): Promise<ScanRow[]> {
@@ -239,6 +239,11 @@ export async function listLatestGraphs(): Promise<ScanGraphSnapshot[]> {
     if (graph) graphs.push(graph);
   }
   return graphs;
+}
+
+export async function setScanSaved(scanId: number, saved: boolean): Promise<void> {
+  const updated = await db.scans.update(scanId, { savedAt: saved ? Date.now() : undefined });
+  if (!updated) throw new Error("This scan no longer exists.");
 }
 
 export async function clearAllData(): Promise<void> {

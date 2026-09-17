@@ -30,8 +30,8 @@ export class LinkScopeDB extends Dexie {
   auditDomains!: Table<AuditDomainRow, [number, string]>;
   watchedSites!: Table<WatchedSiteRow, string>;
 
-  constructor() {
-    super("linkscope");
+  constructor(name = "linkscope") {
+    super(name);
     this.version(1).stores({
       sites: "++id, &domain, lastSeen",
       scans: "++id, siteId, domain, timestamp",
@@ -88,6 +88,15 @@ export class LinkScopeDB extends Dexie {
       auditPageGraphs: "pageId, auditId",
       auditDomains: "[auditId+domain], auditId, domain, category, pageCount",
       watchedSites: "&domain, createdAt, nextRunAt, enabled",
+    });
+    this.version(6).stores({
+      sites: "++id, &domain, lastSeen", scans: "++id, siteId, domain, timestamp", scanGraphs: "scanId",
+      domains: "&domain, category, lastSeen, seenOnCount", sightings: "++id, &[domain+siteId], domain, siteId, lastSeen",
+      alerts: "++id, siteId, timestamp, read", settings: "&key", audits: "++id, domain, startedAt, status",
+      auditPages: "++id, auditId, &[auditId+url], status", auditPageGraphs: "pageId, auditId",
+      auditDomains: "[auditId+domain], auditId, domain, category, pageCount", watchedSites: "&domain, createdAt, nextRunAt, enabled",
+    }).upgrade(async (transaction) => {
+      await transaction.table("settings").put({ key: "automatic-protection", value: "false" });
     });
   }
 }

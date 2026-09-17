@@ -1,11 +1,12 @@
 import { registrableDomain } from "@/src/lib/domain";
 import { db } from "@/src/storage/database";
+import { noteUsage } from "@/src/telemetry/usage";
 import type { WatchedSiteRow, WatchedSiteSchedule } from "@/src/types/graph";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function intervalMs(schedule: WatchedSiteSchedule): number {
-  return schedule === "weekly" ? 7 * DAY_MS : DAY_MS;
+  return schedule === "visit" ? Number.MAX_SAFE_INTEGER : schedule === "weekly" ? 7 * DAY_MS : DAY_MS;
 }
 
 export function normalizeWatchedSiteUrl(value: string): { url: string; domain: string } {
@@ -30,7 +31,7 @@ export async function listDueWatchedSites(now = Date.now()): Promise<WatchedSite
   return await db.watchedSites
     .where("nextRunAt")
     .belowOrEqual(now)
-    .filter((site) => site.enabled)
+    .filter((site) => site.enabled && site.schedule !== "visit")
     .toArray();
 }
 
@@ -47,12 +48,14 @@ export async function addWatchedSite(
     schedule,
     enabled: true,
     createdAt: existing?.createdAt ?? now,
-    nextRunAt: existing?.nextRunAt ?? now,
+    nextRunAt: schedule === "visit" ? Number.MAX_SAFE_INTEGER : existing?.nextRunAt ?? now,
     lastRunAt: existing?.lastRunAt,
     lastScanId: existing?.lastScanId,
     lastError: existing?.lastError,
+    alertMode: existing?.alertMode ?? "important",
   };
   await db.watchedSites.put(row);
+  if (!existing) noteUsage("watchlist-added");
   return row;
 }
 
@@ -62,8 +65,12 @@ export async function updateWatchedSiteSchedule(
 ): Promise<void> {
   await db.watchedSites.update(domain, {
     schedule,
-    nextRunAt: Date.now() + intervalMs(schedule),
+    nextRunAt: schedule === "visit" ? Number.MAX_SAFE_INTEGER : Date.now() + intervalMs(schedule),
   });
+}
+
+export async function updateWatchedSiteAlertMode(domain: string, alertMode: "important" | "all" | "never"): Promise<void> {
+  await db.watchedSites.update(domain, { alertMode });
 }
 
 export async function removeWatchedSite(domain: string): Promise<void> {
@@ -78,7 +85,7 @@ export async function recordWatchedSiteResult(
   const now = Date.now();
   const changes: Partial<WatchedSiteRow> = {
     lastRunAt: now,
-    nextRunAt: now + intervalMs(schedule),
+    nextRunAt: schedule === "visit" ? Number.MAX_SAFE_INTEGER : now + intervalMs(schedule),
   };
   if (input.scanId !== undefined) {
     changes.lastScanId = input.scanId;

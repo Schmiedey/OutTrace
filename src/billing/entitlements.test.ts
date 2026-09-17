@@ -2,6 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import { requirePro, runProAction } from "@/src/billing/entitlements";
 
 describe("Pro entitlements", () => {
+  it("keeps single-page deep scans and local history free", () => {
+    expect(() => requirePro({ paid: false }, "deep-scan")).not.toThrow();
+    expect(() => requirePro({ paid: false }, "extended-history")).not.toThrow();
+    expect(() => requirePro({ paid: false }, "scheduled-checks")).toThrow();
+  });
   it("rejects a gated action for a free account without running it", async () => {
     const action = vi.fn(() => "ran");
 

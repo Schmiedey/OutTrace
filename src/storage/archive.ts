@@ -13,6 +13,7 @@ import type {
 } from "@/src/types/graph";
 
 export type ArchivePayload = {
+  formatVersion?: 1;
   exportedAt: string;
   list?: { source?: string };
   sites: SiteRow[];
@@ -37,6 +38,7 @@ export async function exportArchive(): Promise<ArchivePayload> {
     db.sightings.toArray(),
   ]);
   return {
+    formatVersion: 1,
     exportedAt: new Date().toISOString(),
     list: LIST_ATTRIBUTION,
     sites,
@@ -52,10 +54,14 @@ export function parseArchive(raw: unknown): ArchivePayload {
     throw new Error("This file is not a LinkScope archive.");
   }
   const data = raw as Record<string, unknown>;
+  if (data.formatVersion !== undefined && data.formatVersion !== 1) {
+    throw new Error("This backup uses a newer format. Update LinkScope before importing it.");
+  }
   if (!Array.isArray(data.sites) || !Array.isArray(data.scans) || !Array.isArray(data.graphs)) {
     throw new Error("This file is missing sites, scans, or graphs.");
   }
   return {
+    formatVersion: 1,
     exportedAt: typeof data.exportedAt === "string" ? data.exportedAt : new Date().toISOString(),
     list: data.list && typeof data.list === "object" ? (data.list as { source?: string }) : undefined,
     sites: data.sites as SiteRow[],
@@ -112,6 +118,10 @@ export async function importArchive(archive: ArchivePayload): Promise<ImportResu
         continue;
       }
       if (scanKeys.has(scanKey(scan))) {
+        const existing = existingScans.find((row) => scanKey(row) === scanKey(scan));
+        if (existing?.id !== undefined && scan.savedAt !== undefined && existing.savedAt === undefined) {
+          await db.scans.update(existing.id, { savedAt: scan.savedAt });
+        }
         skipped += 1;
         continue;
       }
@@ -132,6 +142,7 @@ export async function importArchive(archive: ArchivePayload): Promise<ImportResu
           : null;
 
       const newScanId = await db.scans.add({
+        savedAt: scan.savedAt,
         siteId,
         url: scan.url,
         title: scan.title,
@@ -144,6 +155,7 @@ export async function importArchive(archive: ArchivePayload): Promise<ImportResu
         captureMode: scan.captureMode,
         durationMs: scan.durationMs,
         privacyScore: scan.privacyScore ?? scored?.score,
+        scoreVersion: scan.scoreVersion ?? scored?.modelVersion,
         unknownCount: scan.unknownCount ?? scored?.unknown,
         iframeCount: scan.iframeCount ?? scored?.iframeCount,
       });

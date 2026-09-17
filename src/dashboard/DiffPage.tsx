@@ -6,6 +6,10 @@ import { useAsync } from "@/src/lib/useAsync";
 import { getScan, getScanGraph } from "@/src/storage/scans";
 import { CATEGORY_LABELS, type GraphNodeRecord } from "@/src/types/graph";
 import { isTrackerCategory } from "@/src/analysis/categorizer";
+import { useEffect } from "react";
+import { classifyChange } from "@/src/analysis/changeImportance";
+import { markScanActivityRead } from "@/src/storage/alerts";
+import { scoreSnapshot } from "@/src/analysis/score";
 
 export function DiffPage() {
   const params = useParams();
@@ -16,6 +20,7 @@ export function DiffPage() {
   const fromGraph = useAsync(() => getScanGraph(fromId), [fromId]);
   const toGraph = useAsync(() => getScanGraph(toId), [toId]);
   const now = Date.now();
+  useEffect(() => { if (toScan.data && toGraph.data && fromScan.data && fromGraph.data) void markScanActivityRead(toId).catch(() => {}); }, [toId, toScan.data?.id, fromScan.data?.id, toGraph.data?.scanId, fromGraph.data?.scanId]);
 
   if (![fromId, toId].every(Number.isFinite)) {
     return <p className="px-10 py-10 text-mute">Invalid comparison.</p>;
@@ -35,6 +40,9 @@ export function DiffPage() {
   }
 
   const diff = diffSnapshots(fromScan.data, toScan.data, fromGraph.data, toGraph.data);
+  const change = classifyChange(fromScan.data, toScan.data, fromGraph.data, toGraph.data);
+  const previousScore = scoreSnapshot(fromGraph.data).score;
+  const nextScore = scoreSnapshot(toGraph.data).score;
   const back = `/sites/${String(toScan.data.siteId)}`;
 
   return (
@@ -47,6 +55,8 @@ export function DiffPage() {
         {formatRelativeTime(fromScan.data.timestamp, now)} → {formatRelativeTime(toScan.data.timestamp, now)}. First-party
         assets are included; listed trackers are marked.
       </p>
+      <section className="mt-6 rounded-md border border-line bg-panel p-4"><p className="text-[12px] text-mute">{change.importance} · score {previousScore} → {nextScore}</p><ul className="mt-2 space-y-1 text-[13px]">{change.reasons.map((reason) => <li key={reason.code}>{reason.label}</li>)}</ul><p className="mt-2 text-[12px] text-mute">Only attributable privacy changes create attention. Resource churn and score movement alone do not.</p></section>
+      {previousScore !== nextScore ? <details className="mt-3 text-[12px] text-mute"><summary className="cursor-pointer">Why the score changed</summary><p className="mt-2">Before: {scoreSnapshot(fromGraph.data).reasons.join(" · ")}</p><p className="mt-2">After: {scoreSnapshot(toGraph.data).reasons.join(" · ")}</p></details> : null}
 
       <section className="mt-8 grid max-w-2xl grid-cols-2 gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-4">
         <Stat label="Appeared" value={diff.added.length} />

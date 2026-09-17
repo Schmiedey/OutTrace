@@ -9,7 +9,7 @@ export type ProFeature =
   | "extended-history";
 
 const PRO_MESSAGES: Record<ProFeature, string> = {
-  "deep-scan": "The 15-second deep scan is a Pro feature.",
+  "deep-scan": "Single-page scans are free.",
   "deep-audit": "Deep audits require LinkScope Pro.",
   "scheduled-checks": "Scheduled background checks require LinkScope Pro.",
   "unlimited-watched-sites": "Free includes one watched site. Upgrade to Pro for unlimited sites.",
@@ -18,6 +18,7 @@ const PRO_MESSAGES: Record<ProFeature, string> = {
 };
 
 export function requirePro(status: Pick<BillingStatus, "paid">, feature: ProFeature): void {
+  if (feature === "deep-scan" || feature === "extended-history") return;
   if (!status.paid) throw new Error(PRO_MESSAGES[feature]);
 }
 
