@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import type { AuditProgress, AuditRow } from "@/src/audit/types";
 import { ScanProgressBar } from "@/src/components/ScanProgressBar";
@@ -12,6 +12,7 @@ export function AuditRunningPage() {
   const [progress, setProgress] = useState<AuditProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [recent, setRecent] = useState<string[]>([]);
+  const runRequestInFlight = useRef(false);
 
   useEffect(() => {
     if (!Number.isFinite(auditId)) return;
@@ -24,6 +25,7 @@ export function AuditRunningPage() {
       setProgress(nextProgress);
       if (nextAudit.status === "completed") navigate(`/audits/${String(auditId)}`, { replace: true });
       if (nextAudit.status === "failed") setError(nextAudit.error ?? "Audit failed.");
+      if (nextAudit.status !== "failed") setError(null);
     };
     const listener = (message: unknown): undefined => {
       const event = message as { type?: string; requestId?: string; progress?: AuditProgress };
@@ -33,17 +35,31 @@ export function AuditRunningPage() {
       return undefined;
     };
     browser.runtime.onMessage.addListener(listener);
-    void refresh().then(async () => {
+    const ensureRunning = async (): Promise<void> => {
+      if (!alive || runRequestInFlight.current) return;
       const current = await getAudit(auditId);
       if (!alive || !current || current.status === "completed" || current.status === "cancelled") return;
-      const response = (await browser.runtime.sendMessage({ type: "RUN_SITE_AUDIT", auditId, requestId })) as { ok?: boolean; error?: string };
-      if (!alive) return;
-      if (!response?.ok) setError(response?.error ?? "Audit failed.");
-      await refresh();
-    }).catch((err: unknown) => {
+      runRequestInFlight.current = true;
+      try {
+        const response = (await browser.runtime.sendMessage({ type: "RUN_SITE_AUDIT", auditId, requestId })) as { ok?: boolean; error?: string };
+        if (!alive) return;
+        if (!response?.ok) setError(response?.error ?? "Audit failed.");
+        await refresh();
+      } catch (err: unknown) {
+        if (alive) setError(err instanceof Error ? err.message : "Audit failed.");
+      } finally {
+        runRequestInFlight.current = false;
+      }
+    };
+    void refresh().then(() => ensureRunning()).catch((err: unknown) => {
       if (alive) setError(err instanceof Error ? err.message : "Audit failed.");
     });
-    const timer = window.setInterval(() => void refresh(), 750);
+    // Keep a stalled page recoverable when Chrome restarts the MV3 worker. A
+    // duplicate request is safe because the background deduplicates by audit id.
+    const timer = window.setInterval(() => {
+      void refresh();
+      void ensureRunning();
+    }, 1_500);
     return () => {
       alive = false;
       window.clearInterval(timer);

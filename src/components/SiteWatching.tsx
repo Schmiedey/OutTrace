@@ -5,6 +5,10 @@ import { Button } from "@/src/components/ui/button";
 import { db } from "@/src/storage/database";
 import { billingStatus } from "@/src/billing/client";
 import { cn } from "@/src/lib/utils";
+import { requestWatchlistPermission } from "@/src/extension/watchlistPermission";
+import { FREE_WATCHED_SITE_LIMIT } from "@/src/billing/entitlements";
+import { useUpgradePrompt } from "@/src/components/UpgradePrompt";
+import { noteUsage } from "@/src/telemetry/usage";
 
 export function SiteWatching({
   domain,
@@ -20,31 +24,28 @@ export function SiteWatching({
       db.watchedSites.get(domain),
       billingStatus(),
     ]);
-    return { site, billing };
+    return { site, billing, watchedCount: await db.watchedSites.count() };
   }, [domain]);
   const [explain, setExplain] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const openUpgrade = useUpgradePrompt();
   const enable = async () => {
     setBusy(true);
     setError(null);
     try {
-      const granted = await browser.permissions.request({
-        origins: ["*://*/*"],
-      });
-      if (!granted)
-        throw new Error(
-          "Watching needs optional site access. Manual checks still work.",
-        );
+      const granted = await requestWatchlistPermission(url);
       const result = (await browser.runtime.sendMessage({
         type: "ADD_WATCHED_SITE",
         url,
         schedule: "visit",
+        accessGranted: granted,
       })) as { ok?: boolean; error?: string };
       if (!result?.ok)
         throw new Error(result?.error ?? "Could not enable Watching.");
       state.reload();
       setExplain(false);
+      if (!granted) setError("Permission was not granted. This site stays on your watchlist for manual checks only.");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Could not enable Watching.",
@@ -75,7 +76,7 @@ export function SiteWatching({
         >
           Change check frequency and alerts
         </Link>
-      ) : state.data?.billing.paid ? (
+      ) : state.data?.billing.paid || (state.data?.watchedCount ?? 0) < FREE_WATCHED_SITE_LIMIT ? (
         <Button
           variant="ghost"
           className="mt-3"
@@ -85,17 +86,21 @@ export function SiteWatching({
           Watch this site
         </Button>
       ) : (
-        <Link to="/pro" className="mt-3 inline-block text-[13px] underline">
+        <Button
+          variant="ghost"
+          className="mt-3"
+          onClick={() => { noteUsage("upgrade-opened"); openUpgrade(); }}
+        >
           Watch this site · Pro
-        </Link>
+        </Button>
       )}
       {explain ? (
         <div className="mt-3 text-[12px] text-mute">
           <p>
-            Check this site when you visit, after a 6-second dwell and at most
-            twice per day. Scan contents stay local. Daily/weekly scheduling is
-            optional and may briefly load a site in an inactive tab.
-            Notifications stay off unless enabled in Settings.
+            LinkScope needs permission to check {new URL(url).hostname} when
+            you visit, so it can alert you to new trackers. If you decline,
+            this site remains available for manual checks only. Scan contents
+            stay local; notifications remain off unless enabled in Settings.
           </p>
           <div className="mt-3 flex gap-2">
             <Button size="sm" disabled={busy} onClick={() => void enable()}>

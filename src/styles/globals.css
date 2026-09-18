@@ -75,6 +75,47 @@ input {
   height: 100% !important;
 }
 
+@keyframes billing-success-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes billing-success-mark {
+  0% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.billing-success {
+  animation: billing-success-enter 380ms ease-out both;
+}
+
+.billing-success-mark {
+  animation: billing-success-mark 500ms cubic-bezier(0.22, 1, 0.36, 1) 80ms both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .billing-success,
+  .billing-success-mark {
+    animation: none;
+  }
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

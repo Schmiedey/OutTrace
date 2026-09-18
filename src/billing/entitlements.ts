@@ -1,4 +1,7 @@
 import type { BillingStatus } from "@/src/billing/extpay";
+import type { WatchedSiteRow } from "@/src/types/graph";
+
+export const FREE_WATCHED_SITE_LIMIT = 1;
 
 export type ProFeature =
   | "deep-scan"
@@ -20,6 +23,17 @@ const PRO_MESSAGES: Record<ProFeature, string> = {
 export function requirePro(status: Pick<BillingStatus, "paid">, feature: ProFeature): void {
   if (feature === "deep-scan" || feature === "extended-history") return;
   if (!status.paid) throw new Error(PRO_MESSAGES[feature]);
+}
+
+/** Free users can keep one explicitly watched site; Pro removes that limit. */
+export function requireWatchlistCapacity(
+  status: Pick<BillingStatus, "paid">,
+  sites: Pick<WatchedSiteRow, "domain">[],
+  domain: string,
+): void {
+  if (status.paid || sites.some((site) => site.domain === domain)) return;
+  if (sites.length < FREE_WATCHED_SITE_LIMIT) return;
+  throw new Error(PRO_MESSAGES["unlimited-watched-sites"]);
 }
 
 export async function runProAction<T>(

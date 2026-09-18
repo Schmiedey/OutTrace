@@ -17,6 +17,7 @@ import {
 } from "@/src/storage/audits";
 import { getBillingStatus } from "@/src/billing/extpay";
 import { requirePro } from "@/src/billing/entitlements";
+import { claimFreeDeepAudit } from "@/src/storage/settings";
 
 type AuditRunnerOptions = {
   onProgress?: (progress: AuditProgress) => void;
@@ -56,7 +57,6 @@ async function emitProgress(auditId: number, recent: string[], callback?: AuditR
 export async function runAudit(auditId: number, options: AuditRunnerOptions = {}): Promise<void> {
   const audit = await getAudit(auditId);
   if (!audit) throw new Error("Audit not found.");
-  if (audit.mode === "deep") requirePro(await getBillingStatus(), "deep-audit");
   const discovered = new Set<string>([audit.rootUrl]);
   const existingPages = await listAuditPages(auditId);
   const attempted = new Set(existingPages.filter((page) => page.status === "completed").map((page) => page.url));
@@ -64,18 +64,33 @@ export async function runAudit(auditId: number, options: AuditRunnerOptions = {}
   let tabId: number | undefined;
 
   try {
-    const sitemapUrls = await discoverSitemapUrls(audit.rootUrl, audit.maxPages * 20);
-    for (const url of sitemapUrls) discovered.add(url);
-    await setAuditDiscovery(auditId, discovered.size);
-    await emitProgress(auditId, recent, options.onProgress);
-
+    if (audit.mode === "deep") {
+      const billing = await getBillingStatus();
+      if (!billing.paid && !(await claimFreeDeepAudit())) requirePro(billing, "deep-audit");
+    }
+    // Open the reusable audit tab before optional sitemap discovery. A slow or
+    // non-responsive robots.txt must never prevent the root page from being
+    // checked and shown as progress.
     const tab = await browser.tabs.create({ url: "about:blank", active: false });
     if (tab.id === undefined) throw new Error("Could not create the audit tab.");
     tabId = tab.id;
+    await setAuditDiscovery(auditId, discovered.size);
+    await emitProgress(auditId, recent, options.onProgress);
+
+    const sitemapPromise = discoverSitemapUrls(audit.rootUrl, audit.maxPages * 20);
+    let sitemapApplied = false;
 
     while (attempted.size < audit.maxPages) {
       const latest = await getAudit(auditId);
       if (!latest || latest.status === "cancelled") break;
+      // Let the first iteration scan the root immediately. If more pages are
+      // needed, fold in any sitemap results before selecting the next one.
+      if (!sitemapApplied && attempted.size > 0) {
+        const sitemapUrls = await sitemapPromise;
+        for (const url of sitemapUrls) discovered.add(url);
+        sitemapApplied = true;
+        await setAuditDiscovery(auditId, discovered.size);
+      }
       const prioritized = prioritizeAuditUrls(discovered, audit.rootUrl, audit.maxPages);
       const url = prioritized.find((candidate) => !attempted.has(candidate));
       if (!url) break;

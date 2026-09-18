@@ -251,6 +251,7 @@ export const GraphCanvas = memo(function GraphCanvas({
   const newDomains = useGraphStore((state) => state.newDomains);
   const layoutMode = useGraphStore((state) => state.layoutMode);
   const layoutNonce = useGraphStore((state) => state.layoutNonce);
+  const layoutRunningRef = useRef(false);
 
   const filtered = useMemo(
     () =>
@@ -395,6 +396,7 @@ export const GraphCanvas = memo(function GraphCanvas({
       if (cancelled) return;
       cy.resize();
       if (
+        !layoutRunningRef.current &&
         cy.elements().length > 0 &&
         container.clientWidth > 0 &&
         container.clientHeight > 0
@@ -407,6 +409,7 @@ export const GraphCanvas = memo(function GraphCanvas({
       if (cancelled) return;
       cy.resize();
       if (
+        !layoutRunningRef.current &&
         cy.elements().length > 0 &&
         container.clientWidth > 0 &&
         container.clientHeight > 0
@@ -422,6 +425,7 @@ export const GraphCanvas = memo(function GraphCanvas({
       observer.disconnect();
       container.removeEventListener("contextmenu", blockMenu);
       useGraphStore.getState().setCy(null);
+      layoutRunningRef.current = false;
       cy.destroy();
       cyRef.current = null;
     };
@@ -430,8 +434,6 @@ export const GraphCanvas = memo(function GraphCanvas({
   useEffect(() => {
     const cy = cyRef.current;
     if (!cy) return;
-
-    cy.json({ elements: elementsRef.current });
 
     const previousRequest = lastLayoutRequest.current;
     const relayoutRequested =
@@ -445,26 +447,40 @@ export const GraphCanvas = memo(function GraphCanvas({
       scanId: snapshot.scanId,
     };
 
+    cy.json({ elements: elementsRef.current });
+
     // Force layouts are intentionally expensive. Keep the existing placement
     // while filters change, and only recompute it when the user switches or
     // explicitly requests a relayout.
-    if (layoutMode !== "force" || relayoutRequested) {
-      runLayout(cy, layoutMode, snapshot.originDomain, relayoutRequested);
-    }
-
+    const shouldRunLayout = layoutMode !== "force" || relayoutRequested;
+    layoutRunningRef.current = shouldRunLayout;
     let cancelled = false;
-    requestAnimationFrame(() => {
+    const fitAfterLayout = (): void => {
       if (cancelled) return;
+      layoutRunningRef.current = false;
       try {
         cy.resize();
         cy.fit(undefined, 64);
       } catch {
         // Cytoscape can already be destroyed by the time this frame runs.
       }
-    });
+    };
+
+    if (shouldRunLayout) {
+      // Fit only after Cytoscape has finished positioning nodes. Fitting on the
+      // first animation frame sees every node at its origin and zooms in on a
+      // tiny bounding box, which makes the global graph look like a pile of
+      // oversized labels.
+      cy.one("layoutstop", fitAfterLayout);
+      runLayout(cy, layoutMode, snapshot.originDomain, relayoutRequested);
+      if (cy.nodes().length === 0) fitAfterLayout();
+    } else {
+      requestAnimationFrame(fitAfterLayout);
+    }
 
     return () => {
       cancelled = true;
+      layoutRunningRef.current = false;
     };
   }, [elementsKey, layoutMode, layoutNonce, snapshot.originDomain]);
 

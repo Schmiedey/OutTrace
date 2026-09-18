@@ -23,6 +23,7 @@ import type {
 export type PersistScanOptions = {
   captureMode?: CaptureMode;
   durationMs?: number;
+  /** Resolved ExtensionPay entitlement; omitted paths read the cached status. */
   extendedHistory?: boolean;
   watchedSite?: boolean;
 };
@@ -31,6 +32,8 @@ export async function persistScan(raw: RawScanPayload, options: PersistScanOptio
   const normalized = normalizeScan(raw);
   const scored = scoreSnapshot({ scanId: 0, originDomain: normalized.originDomain, nodes: normalized.snapshot.nodes, edges: normalized.snapshot.edges });
   const now = Date.now();
+  // Scan access and retention are intentionally independent of billing.
+  // `extendedHistory` remains accepted for backwards-compatible callers.
   const existingSite = await db.sites.where("domain").equals(normalized.originDomain).first();
   const previous = existingSite?.id !== undefined ? await getLatestScanForSite(existingSite.id) : undefined;
   const previousGraph = previous?.id !== undefined ? await getScanGraph(previous.id) : undefined;
@@ -168,7 +171,7 @@ export async function persistScan(raw: RawScanPayload, options: PersistScanOptio
   if (next && nextGraph) {
     await recordScanAlert(previous, next, nextGraph, previousGraph, watched, newFollowHits);
   }
-  await pruneSnapshots(Date.now(), options.extendedHistory);
+  await pruneSnapshots(now);
   if (!options.captureMode || options.captureMode === "snapshot" || options.captureMode === "watch") noteUsage("manual-scan");
 
   return scanId;
@@ -286,6 +289,8 @@ export async function getOverviewStats(): Promise<{
   connections: number;
   trackers: number;
   scansThisMonth: number;
+  sitesThisMonth: number;
+  trackersSpottedThisMonth: number;
 }> {
   const [sites, domains, scans] = await Promise.all([
     db.sites.count(),
@@ -300,6 +305,7 @@ export async function getOverviewStats(): Promise<{
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
   const scansThisMonth = scans.filter((scan) => scan.timestamp >= startOfMonth.getTime()).length;
+  const monthlyScans = scans.filter((scan) => scan.timestamp >= startOfMonth.getTime());
 
   return {
     sites,
@@ -307,6 +313,8 @@ export async function getOverviewStats(): Promise<{
     connections,
     trackers: trackerRows,
     scansThisMonth,
+    sitesThisMonth: new Set(monthlyScans.map((scan) => scan.siteId)).size,
+    trackersSpottedThisMonth: monthlyScans.reduce((total, scan) => total + scan.trackerCount, 0),
   };
 }
 

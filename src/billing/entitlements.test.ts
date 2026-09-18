@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { requirePro, runProAction } from "@/src/billing/entitlements";
+import { FREE_WATCHED_SITE_LIMIT, requirePro, requireWatchlistCapacity, runProAction } from "@/src/billing/entitlements";
 
 describe("Pro entitlements", () => {
   it("keeps single-page deep scans and local history free", () => {
@@ -28,5 +28,13 @@ describe("Pro entitlements", () => {
       "Deep audits require LinkScope Pro.",
     );
     expect(() => requirePro({ paid: true }, "deep-audit")).not.toThrow();
+  });
+
+  it("allows one free watched site and removes the limit for Pro", () => {
+    expect(FREE_WATCHED_SITE_LIMIT).toBe(1);
+    expect(() => requireWatchlistCapacity({ paid: false }, [], "example.test")).not.toThrow();
+    expect(() => requireWatchlistCapacity({ paid: false }, [{ domain: "other.test" }], "example.test")).toThrow("unlimited sites");
+    expect(() => requireWatchlistCapacity({ paid: false }, [{ domain: "example.test" }], "example.test")).not.toThrow();
+    expect(() => requireWatchlistCapacity({ paid: true }, [{ domain: "other.test" }], "example.test")).not.toThrow();
   });
 });

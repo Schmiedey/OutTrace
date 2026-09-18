@@ -111,6 +111,12 @@ export function SiteDetailPage() {
                       Inspect graph
                     </Link>
                   ) : null}
+                  <Link
+                    to={`/audits/new?url=${encodeURIComponent(latest.url)}`}
+                    className="inline-flex h-9 items-center rounded-md border border-line bg-canvas px-3.5 text-[13px] font-medium text-ink hover:bg-raised"
+                  >
+                    Audit this site
+                  </Link>
                   <span className="inline-flex h-9 items-center text-[12px] text-mute">
                     {latest.captureMode === "watch"
                       ? "Watched capture"

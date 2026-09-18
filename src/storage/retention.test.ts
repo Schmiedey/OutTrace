@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import Dexie from "dexie";
 import { db, LinkScopeDB } from "./database";
-import { pruneSnapshots, FREE_MAX_STORED_SCANS } from "./retention";
+import { assertFreeScanAvailable, countRecentScans, pruneSnapshots, FREE_MAX_STORED_SCANS, FREE_SCAN_TTL_MS, PRO_MAX_STORED_SCANS, PRO_SCAN_TTL_MS } from "./retention";
 import { exportArchive, importArchive, parseArchive } from "./archive";
 import type { ScanRow } from "@/src/types/graph";
 
@@ -18,7 +18,16 @@ afterEach(async () => {
 });
 
 describe("durable saved scans", () => {
-  it("preserves saved scans and their graphs after expiry and overflow", async () => {
+  it("keeps manual scans unlimited while both plans share one storage boundary", async () => {
+    const now = Date.now();
+    await db.scans.bulkAdd(Array.from({ length: FREE_MAX_STORED_SCANS }, (_, index) => scan(now - index)));
+    expect(await countRecentScans(now)).toBe(FREE_MAX_STORED_SCANS);
+    await expect(assertFreeScanAvailable(now)).resolves.toBeUndefined();
+    expect(PRO_MAX_STORED_SCANS).toBe(FREE_MAX_STORED_SCANS);
+    expect(PRO_SCAN_TTL_MS).toBe(FREE_SCAN_TTL_MS);
+  });
+
+  it("preserves saved scans and their graphs after shared retention cleanup", async () => {
     const now = Date.now();
     await db.sites.add({ id: 1, domain: "example.test", firstSeen: 1, lastSeen: now, scanCount: 22 });
     const savedId = await db.scans.add(scan(1, now));

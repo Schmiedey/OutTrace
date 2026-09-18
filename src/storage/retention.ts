@@ -1,10 +1,39 @@
 import { db } from "@/src/storage/database";
 
-// Same finite device-storage safety boundary on every plan, never a usage quota.
-export const FREE_MAX_STORED_SCANS = 1000;
+/** A device-safety boundary, never a plan quota. Both plans retain the same amount. */
+export const FREE_MAX_STORED_SCANS = 1_000;
 export const FREE_SCAN_TTL_MS = 365 * 24 * 60 * 60 * 1000;
-export const PRO_MAX_STORED_SCANS = 1000;
-export const PRO_SCAN_TTL_MS = 365 * 24 * 60 * 60 * 1000;
+export const PRO_MAX_STORED_SCANS = FREE_MAX_STORED_SCANS;
+export const PRO_SCAN_TTL_MS = FREE_SCAN_TTL_MS;
+export const FREE_SCAN_LIMIT_ERROR = "";
+
+export type FreeScanUsage = {
+  used: number;
+  limit: number;
+  remaining: number;
+};
+
+export async function countRecentScans(now = Date.now()): Promise<number> {
+  return await db.scans
+    .where("timestamp")
+    .aboveOrEqual(now - FREE_SCAN_TTL_MS)
+    .count();
+}
+
+export async function getFreeScanUsage(now = Date.now()): Promise<FreeScanUsage> {
+  const used = await countRecentScans(now);
+  return {
+    used,
+    limit: FREE_MAX_STORED_SCANS,
+    remaining: Math.max(0, FREE_MAX_STORED_SCANS - used),
+  };
+}
+
+export async function assertFreeScanAvailable(now = Date.now()): Promise<void> {
+  void now;
+  // Manual scans are unlimited. Retention is pruned after saving as a shared
+  // finite device-storage safety boundary rather than an access gate.
+}
 
 async function deleteScanIds(ids: number[]): Promise<void> {
   if (ids.length === 0) return;
@@ -37,11 +66,11 @@ async function deleteScanIds(ids: number[]): Promise<void> {
   });
 }
 
-/** Every plan has a visible, finite local-storage boundary. */
-export async function pruneSnapshots(now = Date.now(), extended = false): Promise<void> {
+/** Every plan uses the same bounded local-history policy. */
+export async function pruneSnapshots(now = Date.now(), _unlimited = false): Promise<void> {
   if ((await db.settings.get("history-cleanup-paused"))?.value === "true") return;
-  const ttl = extended ? PRO_SCAN_TTL_MS : FREE_SCAN_TTL_MS;
-  const maxScans = extended ? PRO_MAX_STORED_SCANS : FREE_MAX_STORED_SCANS;
+  const ttl = FREE_SCAN_TTL_MS;
+  const maxScans = FREE_MAX_STORED_SCANS;
   const cutoff = now - ttl;
   const expired = (await db.scans.where("timestamp").below(cutoff).toArray()).filter((scan) => scan.savedAt === undefined);
   await deleteScanIds(expired.map((row) => row.id).filter((id): id is number => id !== undefined));

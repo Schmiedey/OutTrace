@@ -9,6 +9,7 @@ import {
 } from "@/src/extension/autoProtect";
 import {
   automaticProtectionEnabled,
+  recordShortcutUsed,
   setAutomaticProtectionEnabled,
 } from "@/src/storage/settings";
 import { canScanUrl } from "@/src/extension/permissions";
@@ -19,12 +20,15 @@ import {
   scanActiveTab,
   watchActiveTab,
 } from "@/src/extension/scanFlow";
+import { scanWatchedVisit } from "@/src/extension/watchlistVisit";
+import { revokeWatchlistPermission } from "@/src/extension/watchlistPermission";
 import { blockDomain } from "@/src/extension/block";
 import type { ScanProgressUpdate } from "@/src/extension/scanProgress";
 import {
   CHANGE_NOTIFICATION_ALARM,
   deliverPendingNotifications,
   maybeNotifyWeeklyDigest,
+  WEEKLY_DIGEST_ALARM,
 } from "@/src/storage/alerts";
 import { registrableDomain } from "@/src/lib/domain";
 import { toggleFollowDomain } from "@/src/storage/follows";
@@ -34,7 +38,7 @@ import {
   openProLogin,
   startBillingBackground,
 } from "@/src/billing/extpay";
-import { requirePro, runProAction } from "@/src/billing/entitlements";
+import { requirePro, requireWatchlistCapacity, runProAction } from "@/src/billing/entitlements";
 import {
   installWatchedSiteSchedule,
   runDueWatchedSites,
@@ -62,6 +66,7 @@ let recentAuditTarget: AuditTarget | null = null;
 const runningAudits = new Map<number, Promise<void>>();
 const automaticScanTimers = new Map<number, ReturnType<typeof setTimeout>>();
 const automaticScansInFlight = new Set<string>();
+let watchNavigationListenerInstalled = false;
 function cancelAutomaticScan(tabId: number): void {
   clearTimeout(automaticScanTimers.get(tabId));
   automaticScanTimers.delete(tabId);
@@ -165,7 +170,68 @@ function progressReporter(
   };
 }
 
+function createScanContextMenu(): void {
+  // `contextMenus` is optional. Chrome exposes the namespace even before the
+  // user grants it, but create() rejects asynchronously in that state.
+  try {
+    void Promise.resolve(
+      browser.contextMenus?.create({
+        id: "linkscope-scan",
+        title: "Scan with LinkScope",
+        contexts: ["page"],
+      }),
+    ).catch(() => undefined);
+  } catch {
+    // The optional context-menu permission is unavailable in this browser.
+  }
+}
+
+function installWatchNavigationListener(): void {
+  if (watchNavigationListenerInstalled) return;
+  try {
+    const event = browser.webNavigation?.onCompleted;
+    if (!event) return;
+    event.addListener((details) => {
+      if (details.frameId !== 0 || !canScanUrl(details.url)) return;
+      void scanWatchedVisit(details.tabId, details.url).catch(() => undefined);
+    }, { url: [{ schemes: ["http", "https"] }] });
+    watchNavigationListenerInstalled = true;
+  } catch {
+    // The optional webNavigation permission has not been granted yet.
+  }
+}
+
+async function ensureWeeklyDigestAlarm(): Promise<void> {
+  if (!browser.alarms?.create) return;
+  const existing = browser.alarms.get
+    ? await browser.alarms.get(WEEKLY_DIGEST_ALARM)
+    : undefined;
+  if (existing) return;
+  await browser.alarms.create(WEEKLY_DIGEST_ALARM, {
+    delayInMinutes: 7 * 24 * 60,
+    periodInMinutes: 7 * 24 * 60,
+  });
+}
+
 export default defineBackground(() => {
+  // The API permission is optional. If the user has not enabled it, this
+  // simply leaves the browser's context menu untouched.
+  createScanContextMenu();
+  try {
+    browser.contextMenus?.onClicked?.addListener((info, tab) => {
+      if (info.menuItemId !== "linkscope-scan" || tab?.id === undefined || !tab.url) return;
+      // Start from the user gesture immediately. The scan pipeline resolves
+      // the cached entitlement at save time, so a provider round-trip cannot
+      // consume the activeTab grant before injection starts.
+      void scanActiveTab({ tabId: tab.id, url: tab.url }).catch(() => undefined);
+    });
+    browser.permissions?.onAdded?.addListener((permission) => {
+      if (permission.permissions?.includes("contextMenus")) createScanContextMenu();
+      if (permission.permissions?.includes("webNavigation") || permission.origins?.length) installWatchNavigationListener();
+    });
+  } catch {
+    // Optional browser APIs may be unavailable until explicitly enabled.
+  }
   startBillingBackground();
   installRequestCapture();
   void installWatchedSiteSchedule().catch((error: unknown) => {
@@ -175,7 +241,8 @@ export default defineBackground(() => {
         : "Could not initialize watched-site schedule",
     );
   });
-  void refreshActiveTabBadge();
+  void ensureWeeklyDigestAlarm().catch(() => undefined);
+  void refreshActiveTabBadge().catch(() => undefined);
   void browser.tabs
     .query({ active: true, currentWindow: true })
     .then(([tab]) => {
@@ -186,12 +253,15 @@ export default defineBackground(() => {
 
   browser.commands.onCommand.addListener((command) => {
     if (command !== "scan-active-tab") return;
-    void getBillingStatus()
-      .then((billing) => scanActiveTab({ extendedHistory: billing.paid }))
-      .catch((error: unknown) => {
-        console.error(error instanceof Error ? error.message : "Scan failed");
-      });
+    void recordShortcutUsed();
+    void scanActiveTab().catch((error: unknown) => {
+      console.error(error instanceof Error ? error.message : "Scan failed");
+    });
   });
+
+  // `webNavigation` only produces events for origins the user granted. The
+  // watchlist lookup is a second guard so a grant never expands scan scope.
+  installWatchNavigationListener();
 
   if (browser.tabs?.onActivated) {
     browser.tabs.onActivated.addListener((info) => {
@@ -199,7 +269,7 @@ export default defineBackground(() => {
       void browser.tabs
         .get(info.tabId)
         .then((tab) => {
-          void applyBadgeForUrl(tab.url, tab.id);
+          void applyBadgeForUrl(tab.url, tab.id).catch(() => undefined);
           if (tab.status === "complete")
             scheduleAutomaticScan(info.tabId, tab.url);
         })
@@ -214,7 +284,7 @@ export default defineBackground(() => {
       const target = auditTargetFromTab(tab);
       if (target) recentAuditTarget = target;
       if (changeInfo.status !== "complete" && !changeInfo.url) return;
-      void applyBadgeForUrl(tab.url, tab.id);
+      void applyBadgeForUrl(tab.url, tab.id).catch(() => undefined);
       if (changeInfo.status === "complete")
         scheduleAutomaticScan(_tabId, tab.url);
     });
@@ -224,20 +294,24 @@ export default defineBackground(() => {
     cancelAutomaticScan(tabId);
     forgetActionState(tabId);
   });
-  browser.permissions.onRemoved.addListener(() => {
-    void browser.permissions
-      .contains({ origins: ["*://*/*"] })
-      .then(async (allowed) => {
-        if (allowed) return;
-        for (const tabId of automaticScanTimers.keys())
-          cancelAutomaticScan(tabId);
-        await setAutomaticProtectionEnabled(false);
-        await browser.runtime
-          .sendMessage({ type: "PROTECTION_UPDATED" })
-          .catch(() => {});
-      })
-      .catch(() => {});
-  });
+  try {
+    browser.permissions?.onRemoved?.addListener(() => {
+      void browser.permissions
+        .contains({ origins: ["*://*/*"] })
+        .then(async (allowed) => {
+          if (allowed) return;
+          for (const tabId of automaticScanTimers.keys())
+            cancelAutomaticScan(tabId);
+          await setAutomaticProtectionEnabled(false);
+          await browser.runtime
+            .sendMessage({ type: "PROTECTION_UPDATED" })
+            .catch(() => {});
+        })
+        .catch(() => {});
+    });
+  } catch {
+    // The permissions API is unavailable in this browser.
+  }
 
   if (browser.notifications?.onClicked) {
     browser.notifications.onClicked.addListener((notificationId) => {
@@ -270,10 +344,11 @@ export default defineBackground(() => {
   browser.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === CHANGE_NOTIFICATION_ALARM)
       void deliverPendingNotifications().catch(console.error);
+    if (alarm.name === WEEKLY_DIGEST_ALARM)
+      void maybeNotifyWeeklyDigest().catch(console.error);
     if (alarm.name === WATCHED_SITE_ALARM) {
       void runDueWatchedSites()
         .then(() => deliverPendingNotifications())
-        .then(() => maybeNotifyWeeklyDigest())
         .catch(console.error);
     }
   });
@@ -306,13 +381,9 @@ export default defineBackground(() => {
       return true;
     }
     if (message?.type === "SCAN_ACTIVE_TAB") {
-      void getBillingStatus()
-        .then((billing) =>
-          scanActiveTab({
-            extendedHistory: billing.paid,
-            onProgress: progressReporter(message.requestId),
-          }),
-        )
+      void scanActiveTab({
+        onProgress: progressReporter(message.requestId),
+      })
         .then((scanId) => sendResponse({ ok: true, scanId }))
         .catch((error: unknown) =>
           sendResponse({
@@ -336,7 +407,6 @@ export default defineBackground(() => {
         url,
         notifyIfNew: false,
         force: true,
-        extendedHistory: false,
         allFrames: false,
         onProgress: progressReporter(message.requestId),
       })
@@ -380,16 +450,14 @@ export default defineBackground(() => {
           },
         }).finally(() => runningAudits.delete(auditId));
         runningAudits.set(auditId, task);
+        // The crawl can legitimately take longer than a message channel's
+        // lifetime. Progress is persisted in IndexedDB and streamed below;
+        // acknowledge the start immediately instead of holding sendResponse
+        // until every page has finished.
+        void task.catch(() => undefined);
       }
-      void task
-        .then(() => sendResponse({ ok: true, auditId }))
-        .catch((error: unknown) =>
-          sendResponse({
-            ok: false,
-            error: error instanceof Error ? error.message : "Audit failed",
-          }),
-        );
-      return true;
+      sendResponse({ ok: true, auditId });
+      return false;
     }
 
     if (message?.type === "CANCEL_SITE_AUDIT") {
@@ -411,7 +479,7 @@ export default defineBackground(() => {
       void getBillingStatus()
         .then((status) =>
           runProAction(status, "deep-scan", () =>
-            watchActiveTab(undefined, true),
+            watchActiveTab(undefined, status.paid),
           ),
         )
         .then(() => sendResponse({ ok: true }))
@@ -433,7 +501,7 @@ export default defineBackground(() => {
             error:
               error instanceof Error
                 ? error.message
-                : "Could not check subscription",
+                : "Could not check Pro status",
           }),
         );
       return true;
@@ -480,13 +548,15 @@ export default defineBackground(() => {
           : message.schedule === "weekly"
             ? "weekly"
             : "daily";
+      const accessGranted = message.accessGranted === true;
       void Promise.all([listWatchedSites(), getBillingStatus()])
         .then(async ([sites, billing]) => {
           const target = normalizeWatchedSiteUrl(url);
-          requirePro(billing, "scheduled-checks");
-          const site = await addWatchedSite(url, schedule);
+          requireWatchlistCapacity(billing, sites, target.domain);
+          if (schedule !== "visit") requirePro(billing, "scheduled-checks");
+          const site = await addWatchedSite(url, schedule, accessGranted);
           const scanId =
-            schedule === "visit" ? undefined : await runWatchedSite(site);
+            !accessGranted || schedule === "visit" ? undefined : await runWatchedSite(site);
           sendResponse({ ok: true, site: { ...site, lastScanId: scanId } });
         })
         .catch((error: unknown) =>
@@ -532,13 +602,14 @@ export default defineBackground(() => {
             : "daily";
       void getBillingStatus()
         .then((billing) => {
-          requirePro(billing, "scheduled-checks");
           if (
             message.alertMode === "important" ||
             message.alertMode === "all" ||
             message.alertMode === "never"
           )
             return updateWatchedSiteAlertMode(domain, message.alertMode);
+          if (schedule === "visit") return updateWatchedSiteSchedule(domain, schedule);
+          requirePro(billing, "scheduled-checks");
           return updateWatchedSiteSchedule(domain, schedule);
         })
         .then(() => sendResponse({ ok: true }))
@@ -556,7 +627,13 @@ export default defineBackground(() => {
 
     if (message?.type === "REMOVE_WATCHED_SITE") {
       const domain = typeof message.domain === "string" ? message.domain : "";
-      void removeWatchedSite(domain)
+      void (async () => {
+        const site = (await listWatchedSites()).find((item) => item.domain === domain);
+        await removeWatchedSite(domain);
+        // Revoke even for rows created before the accessGranted marker was
+        // introduced; removal must always drop the matching host grant.
+        if (site) await revokeWatchlistPermission(site.url);
+      })()
         .then(() => sendResponse({ ok: true }))
         .catch((error: unknown) =>
           sendResponse({

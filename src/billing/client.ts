@@ -4,7 +4,7 @@ type BillingResponse = { ok?: boolean; status?: BillingStatus; error?: string };
 
 export async function billingStatus(force = false): Promise<BillingStatus> {
   const response = (await browser.runtime.sendMessage({ type: "GET_BILLING_STATUS", force })) as BillingResponse;
-  if (!response?.ok || !response.status) throw new Error(response?.error ?? "Could not check subscription.");
+  if (!response?.ok || !response.status) throw new Error(response?.error ?? "Could not check Pro status.");
   return response.status;
 }
 

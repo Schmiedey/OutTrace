@@ -31,9 +31,9 @@ async function navigateAndWait(tabId: number, url: string, timeoutMs = 30_000): 
 }
 
 export async function runWatchedSite(site: WatchedSiteRow): Promise<number> {
-  const origin = new URL(site.url).origin;
+  const hostname = new URL(site.url).hostname;
   const billing = await getBillingStatus();
-  const requiredOrigins = billing.paid ? ["*://*/*"] : [`${origin}/*`];
+  const requiredOrigins = [`*://${hostname}/*`];
   const allowed = await browser.permissions.contains({ origins: requiredOrigins });
   if (!allowed) throw new Error("Site access was removed. Add this site again to restore it.");
   let tabId: number | undefined;
@@ -80,7 +80,14 @@ export async function runDueWatchedSites(): Promise<void> {
 }
 
 export async function installWatchedSiteSchedule(): Promise<void> {
-  await browser.alarms.create(WATCHED_SITE_ALARM, { delayInMinutes: 1, periodInMinutes: 60 });
+  const existing = browser.alarms.get
+    ? await browser.alarms.get(WATCHED_SITE_ALARM)
+    : undefined;
+  if (!existing) {
+    await browser.alarms.create(WATCHED_SITE_ALARM, { delayInMinutes: 1, periodInMinutes: 60 });
+  }
   const sites = await listWatchedSites();
-  if (sites.some((site) => site.enabled && site.nextRunAt <= Date.now())) void runDueWatchedSites();
+  if (sites.some((site) => site.enabled && site.nextRunAt <= Date.now())) {
+    void runDueWatchedSites().catch(() => undefined);
+  }
 }

@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/src/components/ui/button";
+import { Badge } from "@/src/components/ui/badge";
 import { ScanProgressBar } from "@/src/components/ScanProgressBar";
 import { useScanProgress } from "@/src/components/useScanProgress";
 import { DomainIdentityCard } from "@/src/components/DomainIdentity";
@@ -33,9 +34,11 @@ import {
   unusualForSite,
   type SiteMemory,
 } from "@/src/storage/siteMemory";
-import { listIgnoredDomains } from "@/src/storage/settings";
+import { listIgnoredDomains, recordShortcutPromoImpression, shouldShowShortcutPromo } from "@/src/storage/settings";
 import type { DomainRow } from "@/src/types/graph";
 import { noteUsage } from "@/src/telemetry/usage";
+import { getOverviewStats } from "@/src/storage/scans";
+import { billingStatus } from "@/src/billing/client";
 
 const POPUP_QUICK_SCAN_TIMEOUT_MS = 25_000;
 
@@ -74,6 +77,24 @@ export function PopupApp() {
   const [followed, setFollowed] = useState(false);
   const scanProgress = useScanProgress();
   const activity = useAsync(() => listRecentAlerts(100, true), []);
+  const monthlyStats = useAsync(() => getOverviewStats(), []);
+  const billing = useAsync(() => billingStatus(true), []);
+  const shortcutPromo = useAsync(shouldShowShortcutPromo, []);
+  const shortcutImpressionRecorded = useRef(false);
+
+  useEffect(() => {
+    if (!shortcutPromo.data || shortcutImpressionRecorded.current) return;
+    shortcutImpressionRecorded.current = true;
+    void recordShortcutPromoImpression().then(shortcutPromo.reload).catch(() => {});
+  }, [shortcutPromo.data]);
+  useEffect(() => {
+    if (scanProgress.progress?.phase === "complete") {
+      monthlyStats.reload();
+    }
+    // The reload callback is intentionally omitted: useAsync returns a fresh
+    // wrapper on each render, while the phase is the actual trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scanProgress.progress?.phase]);
   const elsewhere =
     activity.data?.filter(
       (alert) => !alert.read && alert.siteDomain !== host,
@@ -81,6 +102,8 @@ export function PopupApp() {
 
   useEffect(() => {
     noteUsage("product-opened");
+    // Visit-time badges are acknowledgement hints, not a persistent nag.
+    void Promise.resolve(browser.action?.setBadgeText?.({ text: "" })).catch(() => {});
     let alive = true;
     void listIgnoredDomains()
       .then((value) => {
@@ -212,7 +235,6 @@ export function PopupApp() {
           url: target.url,
           notifyIfNew: false,
           force: true,
-          extendedHistory: false,
           allFrames: false,
           onProgress: scanProgress.update,
         }),
@@ -263,8 +285,10 @@ export function PopupApp() {
   return (
     <div className="flex min-h-[320px] w-[360px] flex-col bg-canvas px-4 py-4 text-ink">
       <div className="flex items-baseline justify-between gap-3">
-        <p className="text-[11px] tracking-[0.14em] text-mute uppercase">
-          LinkScope
+        <p className="text-[11px] tracking-[0.08em] text-mute uppercase">
+          {monthlyStats.data && monthlyStats.data.sitesThisMonth > 0
+            ? `${String(monthlyStats.data.trackersSpottedThisMonth)} trackers spotted across ${String(monthlyStats.data.sitesThisMonth)} ${monthlyStats.data.sitesThisMonth === 1 ? "site" : "sites"} this month`
+            : "LinkScope"}
         </p>
         <p className="text-[11px] text-mute">
           {checking ? (glance ? "Refreshing…" : "Checking…") : "Local-first"}
@@ -273,6 +297,11 @@ export function PopupApp() {
       <h1 className="font-display mt-1.5 break-all text-[26px] leading-tight">
         {host}
       </h1>
+      {shortcutPromo.data ? (
+        <p className="mt-2 rounded-md border border-line bg-panel px-3 py-2 text-[12px] text-mute">
+          Tip: press Alt+Shift+L to scan instantly.
+        </p>
+      ) : null}
       {blocked ? (
         <p className="mt-3 text-[12px] text-amber">{blocked}</p>
       ) : null}
@@ -281,6 +310,12 @@ export function PopupApp() {
           {error}
           {glance ? " Your saved result is still shown." : ""}
         </p>
+      ) : null}
+      {billing.data?.paid ? (
+        <div role="status" className="mt-3 flex items-center justify-between rounded-md border border-lime/30 bg-panel px-3 py-2">
+          <span className="text-[12px] font-medium">LinkScope Pro</span>
+          <Badge tone="lime" className="font-medium">Active</Badge>
+        </div>
       ) : null}
       {elsewhere.length ? (
         <section className="mt-3 rounded-md border border-line bg-panel p-3">

@@ -101,14 +101,17 @@ export function UpgradeDialog({ open, status, onClose, onStatusChange }: Upgrade
 
         <div className="grid md:grid-cols-[1fr_250px]">
           <div className="p-7 md:p-9">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-raised px-2.5 py-1 text-[11px] font-medium tracking-[0.08em] uppercase">
-              <ShieldCheck className="h-3.5 w-3.5" /> LinkScope Pro
+            <div className="flex items-center gap-2.5">
+              <ShieldCheck className="h-4 w-4 text-ink" aria-hidden="true" />
+              <span className="text-[11px] font-medium tracking-[0.16em] uppercase">LinkScope</span>
+              <span className="h-4 w-px bg-line" aria-hidden="true" />
+              <span className="font-display text-lg leading-none text-mute">Pro</span>
             </div>
             <h2 id={titleId} className="font-display mt-4 max-w-lg text-4xl leading-[1.05]">
-              See what changed before it becomes a problem.
+              Let LinkScope keep watch.
             </h2>
             <p className="mt-3 max-w-xl text-[14px] leading-relaxed text-mute">
-              Turn one-off privacy checks into continuous monitoring—without sending your scan history to a cloud dashboard.
+              One payment unlocks recurring monitoring and multi-site reporting—without sending your scan history to a cloud dashboard.
             </p>
 
             <div className="mt-7 grid gap-x-6 gap-y-5 sm:grid-cols-2">
@@ -127,9 +130,9 @@ export function UpgradeDialog({ open, status, onClose, onStatusChange }: Upgrade
           </div>
 
           <aside className="flex flex-col border-t border-line bg-panel p-7 md:border-t-0 md:border-l">
-            <p className="text-[11px] tracking-[0.12em] text-mute uppercase">One simple plan</p>
-            <p className="font-display mt-2 text-4xl">$8</p>
-            <p className="text-[12px] text-mute">per month</p>
+            <p className="text-[11px] tracking-[0.12em] text-mute uppercase">One-time purchase</p>
+            <p className="font-display mt-2 text-4xl">$14.99</p>
+            <p className="text-[12px] text-mute">pay once, keep Pro access</p>
             <ul className="mt-6 space-y-2.5 text-[12px]">
               {["Unlimited watched sites", "Daily or weekly checks", "Native digests", "Change alerts and diffs", "Deep audits + multi-site export"].map((item) => (
                 <li key={item} className="flex items-start gap-2">
@@ -141,11 +144,11 @@ export function UpgradeDialog({ open, status, onClose, onStatusChange }: Upgrade
 
             <div className="mt-7 md:mt-auto md:pt-8">
               <Button
-                className="w-full"
+                className="w-full whitespace-nowrap"
                 disabled={Boolean(busy) || status?.configured === false}
                 onClick={() => void run("checkout")}
               >
-                {busy === "checkout" ? "Opening secure checkout…" : status?.sandbox ? "Upgrade with test checkout" : "Upgrade to Pro"}
+                {busy === "checkout" ? "Opening secure checkout…" : "Upgrade to Pro"}
               </Button>
               <button
                 type="button"
@@ -156,9 +159,9 @@ export function UpgradeDialog({ open, status, onClose, onStatusChange }: Upgrade
                 {busy === "login" ? "Opening…" : "Already paid? Restore purchase"}
               </button>
               <p className="mt-5 text-center text-[10px] leading-relaxed text-mute">
-                Payment is handled by Stripe through ExtensionPay. Scan data stays on this device.
+                Payment email and card details are handled by Stripe through ExtensionPay for the receipt. LinkScope has no account and scan data stays on this device.
               </p>
-              {billingOpened ? <p className="mt-3 text-center text-[11px] text-lime">Billing opened in a new tab.</p> : null}
+              {billingOpened ? <p className="mt-3 text-center text-[11px] text-lime">Billing opened. LinkScope will return you to the Pro page after payment.</p> : null}
               {error || status?.error ? <p className="mt-3 text-center text-[11px] text-rose">{error ?? status?.error}</p> : null}
             </div>
           </aside>

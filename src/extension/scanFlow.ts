@@ -290,7 +290,7 @@ export async function scanActiveTab(
 
 export async function watchActiveTab(
   durationMs = WATCH_DURATION_MS,
-  extendedHistory = false,
+  extendedHistory?: boolean,
 ): Promise<number> {
   const tab = await resolveTargetTab();
   const waitingUrl = browser.runtime.getURL(

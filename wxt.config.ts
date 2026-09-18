@@ -23,7 +23,13 @@ export default defineConfig({
       "webRequest",
       "declarativeNetRequest",
     ],
+    // These capabilities are requested only from an explicit LinkScope control.
+    // They never grant access to a site by themselves.
+    optional_permissions: ["contextMenus", "webNavigation"],
     optional_host_permissions: ["*://*/*"],
+    chrome_url_overrides: {
+      newtab: "newtab.html",
+    },
     commands: {
       "scan-active-tab": {
         suggested_key: {

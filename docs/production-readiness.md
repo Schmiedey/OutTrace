@@ -17,9 +17,9 @@
 - Never back up billing tokens or authentication secrets into user-downloadable archives.
 - Restore permissions and blocking only through explicit user actions; do not silently activate scanning on a new device.
 - Backup validation and failed-write rollback tests are implemented; test interrupted restore and fresh-profile recovery in a real browser before release.
-- Billing outage grace is 72 hours from the last successful verification. Billing errors, expired Pro access, and restore pause cleanup until the user reviews and explicitly resumes it.
-- Configure ExtensionPay product and live Stripe plans; verify live checkout, restore purchase, cancellation, failed renewal, refund, and support flows.
-- Payment-success content script and subscription management flow are implemented according to ExtensionPay documentation; verify them against actual provider accounts.
+- A cached paid result keeps one-time Pro access available during a temporary provider outage; a successful unpaid response still downgrades the entitlement immediately.
+- Configure the ExtensionPay product as a one-time $14.99 plan and connect the intended Stripe account; verify live checkout, restore purchase, refunds, and support flows.
+- The payment-success content script and purchase restoration flow are implemented according to ExtensionPay documentation; verify them against the actual provider account.
 - Storage usage/error reporting and browser persistence request are implemented. Neither protects against uninstall or device loss; external backups remain required.
 - Prepare privacy disclosures, support contact, refund policy, store screenshots, listing, and review instructions.
 - Publish only after real-browser upgrade, permission, purchase, and recovery checks pass.
@@ -27,8 +27,8 @@
 ## Provider setup and manual release gates
 
 1. Confirm the `linkscope` ExtensionPay product and connect the intended Stripe account.
-2. Configure the advertised $8/month price in the provider dashboard, or change the advertised price to match Checkout. Configure reactivation limits, support, and refund details.
-3. On an unpacked sandbox build, verify test checkout, payment-success refresh, purchase restoration, Pro feature unlocks, subscription management, failed renewal, cancellation, and refund.
+2. Configure a single one-time $14.99 plan in the provider dashboard. Confirm the product is configured as a single purchase, then configure support and refund details.
+3. On an unpacked sandbox build, verify test checkout, payment-success refresh, purchase restoration, Pro feature unlocks, the ExtensionPay test reset between paid/unpaid, and refund handling.
 4. On the actual store-installed build, verify live mode and prices before authorizing any real transaction. No real purchase was performed by this implementation.
 5. Update an old populated installation in place, without uninstalling. Confirm scans, graphs, saved status, preferences, watching, following, audits, and dynamic blocks remain intact.
 6. Restore a complete backup into a fresh profile; verify cancelled/damaged restores, inactive restored scanning, manual block permission approval, and unchanged billing access.

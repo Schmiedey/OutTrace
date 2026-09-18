@@ -32,6 +32,12 @@ export async function unreadAlertCount(): Promise<number> {
   return rows.filter((row) => !row.read && activityImportance(row) !== "routine").length;
 }
 
+export async function unreadWatchedAlertCount(): Promise<number> {
+  const [alerts, watched] = await Promise.all([db.alerts.toArray(), db.watchedSites.toArray()]);
+  const domains = new Set(watched.filter((site) => site.enabled).map((site) => site.domain));
+  return alerts.filter((alert) => domains.has(alert.siteDomain) && !alert.read && activityImportance(alert) !== "routine").length;
+}
+
 export async function markActivityRead(id: number): Promise<void> {
   await db.alerts.update(id, { read: true }); await syncAlertBadge();
 }
@@ -69,17 +75,28 @@ async function sendWeeklyDigest(now: number): Promise<void> {
   if (Number.isFinite(lastSent) && lastSent > 0 && now - lastSent < interval) return;
 
   const since = lastSent > 0 ? lastSent : now - interval;
-  const alerts = (await db.alerts.where("timestamp").above(since).toArray()).filter((alert) => alert.timestamp <= now && activityImportance(alert) !== "routine" && (mode === "important-weekly" || !alert.notifiedAt));
+  const watched = await db.watchedSites.toArray();
+  const watchedDomains = new Set(
+    watched
+      .filter((site) => site.enabled && site.alertMode !== "never")
+      .map((site) => site.domain),
+  );
+  const alerts = (await db.alerts.where("timestamp").above(since).toArray()).filter((alert) => watchedDomains.has(alert.siteDomain) && alert.timestamp <= now && activityImportance(alert) !== "routine" && (mode === "important-weekly" || !alert.notifiedAt));
   const changedSites = new Set(alerts.map((alert) => alert.siteDomain));
   if (changedSites.size === 0) { await db.settings.put({ key: LAST_DIGEST_KEY, value: String(now) }); return; }
 
   const count = changedSites.size;
+  const trackers = new Set(
+    alerts.flatMap((alert) =>
+      alert.addedTrackers.map((domain) => `${alert.siteDomain}:${domain}`),
+    ),
+  ).size;
   try {
     await browser.notifications.create(`linkscope-digest-${String(Math.floor(now / interval))}`, {
       type: "basic",
       iconUrl: notificationIconUrl(),
       title: "Your LinkScope week",
-      message: `${String(count)} ${count === 1 ? "site changed" : "sites changed"}.`,
+      message: `${String(trackers)} new ${trackers === 1 ? "tracker" : "trackers"} spotted across your ${String(count)} watched ${count === 1 ? "site" : "sites"} this week.`,
     });
     await db.settings.put({ key: LAST_DIGEST_KEY, value: String(now) });
     await Promise.all(alerts.map((alert) => alert.id === undefined ? Promise.resolve() : db.alerts.update(alert.id, { digestedAt: now })));
@@ -203,6 +220,7 @@ export async function syncAlertBadge(_count?: number): Promise<void> {
 }
 
 export const CHANGE_NOTIFICATION_ALARM = "linkscope-change-notifications";
+export const WEEKLY_DIGEST_ALARM = "linkscope-weekly-digest";
 async function browserSafeNotificationAlarm(): Promise<void> {
   if (typeof browser !== "undefined" && browser.alarms?.create) await browser.alarms.create(CHANGE_NOTIFICATION_ALARM, { delayInMinutes: 5 });
 }

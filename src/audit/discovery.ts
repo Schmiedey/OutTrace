@@ -1,6 +1,8 @@
 import { canonicalAuditUrl } from "@/src/audit/url";
 import type { RawScanPayload } from "@/src/types/graph";
 
+export const DISCOVERY_REQUEST_TIMEOUT_MS = 8_000;
+
 function decodeXml(value: string): string {
   return value
     .replaceAll("&amp;", "&")
@@ -17,12 +19,28 @@ function xmlLocations(xml: string): string[] {
 }
 
 async function fetchText(url: string): Promise<string | null> {
+  const controller = new AbortController();
+  let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
-    const response = await fetch(url, { redirect: "follow", credentials: "omit" });
-    if (!response.ok) return null;
-    return await response.text();
+    const request = fetch(url, {
+      redirect: "follow",
+      credentials: "omit",
+      signal: controller.signal,
+    }).then(async (response) => {
+      if (!response.ok) return null;
+      return await response.text();
+    });
+    const deadline = new Promise<null>((resolve) => {
+      timeout = setTimeout(() => {
+        controller.abort();
+        resolve(null);
+      }, DISCOVERY_REQUEST_TIMEOUT_MS);
+    });
+    return await Promise.race([request, deadline]);
   } catch {
     return null;
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
   }
 }
 

@@ -75,6 +75,12 @@ function SiteCard({ site, latest }: { site: SiteRow; latest: ScanRow | undefined
             Latest graph
           </Link>
         ) : null}
+        <Link
+          to={`/audits/new?url=${encodeURIComponent(latest?.url ?? `https://${site.domain}/`)}`}
+          className="text-[13px] text-ink hover:underline"
+        >
+          Audit site
+        </Link>
         {site.id !== undefined ? (
           <Link to={`/sites/${String(site.id)}`} className="text-[13px] text-mute hover:text-ink">
             History

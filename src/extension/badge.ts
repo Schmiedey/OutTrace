@@ -96,3 +96,13 @@ export async function refreshActiveTabBadge(): Promise<void> {
   if (tab?.id !== undefined)
     await applyActionState({ tabId: tab.id, url: tab.url });
 }
+
+/** A visit-only watch alert is deliberately local to the tab that caused it. */
+export async function setWatchlistBadge(tabId: number, newDomains: number): Promise<void> {
+  if (!browser.action?.setBadgeText || newDomains <= 0) return;
+  await Promise.all([
+    browser.action.setBadgeText({ tabId, text: String(newDomains) }),
+    browser.action.setBadgeBackgroundColor?.({ tabId, color: "#a16207" }),
+    browser.action.setTitle?.({ tabId, title: `LinkScope — ${String(newDomains)} new ${newDomains === 1 ? "domain" : "domains"} on this watched site` }),
+  ]);
+}

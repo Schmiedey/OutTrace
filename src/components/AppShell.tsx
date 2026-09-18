@@ -4,6 +4,7 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { billingStatus } from "@/src/billing/client";
 import type { BillingStatus } from "@/src/billing/extpay";
 import { UpgradeDialog } from "@/src/components/UpgradeDialog";
+import { UpgradePromptContext } from "@/src/components/UpgradePrompt";
 import { cn } from "@/src/lib/utils";
 import { useAsync } from "@/src/lib/useAsync";
 import { markAlertsRead, unreadAlertCount } from "@/src/storage/alerts";
@@ -76,8 +77,6 @@ export function AppShell() {
               <span className="flex-1">Pro plan</span>
               <span className="rounded-full bg-raised px-1.5 py-0.5 text-[9px] font-medium tracking-wide text-ink uppercase">Active</span>
             </NavLink>
-          ) : billing.loading ? (
-            <div className="h-[62px] rounded-lg bg-raised" aria-hidden="true" />
           ) : (
             <button
               type="button"
@@ -89,14 +88,16 @@ export function AppShell() {
                 Upgrade to Pro
                 <ArrowUpRight className="ml-auto h-3.5 w-3.5 opacity-60 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
               </span>
-              <span className="mt-1 block pl-6 text-[10px] text-canvas/65">Automatic checks, alerts & more</span>
+              <span className="mt-1 block pl-6 text-[10px] text-canvas/65">One-time $14.99 · recurring monitoring</span>
             </button>
           )}
           <p className="px-3 pt-3 pb-2 text-[10px] leading-relaxed text-mute">Scan data stays on this device.</p>
         </div>
       </aside>
       <main className="min-w-0 flex-1">
-        <Outlet />
+        <UpgradePromptContext.Provider value={() => setUpgradeOpen(true)}>
+          <Outlet />
+        </UpgradePromptContext.Provider>
       </main>
       <UpgradeDialog open={upgradeOpen} status={status} onClose={closeUpgrade} onStatusChange={updateStatus} />
     </div>

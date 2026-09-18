@@ -5,6 +5,10 @@ const AUTOMATIC_PROTECTION_KEY = "automatic-protection";
 const ALERT_SENSITIVITY_KEY = "alert-sensitivity";
 const DIGEST_FREQUENCY_KEY = "digest-frequency";
 const IGNORED_DOMAINS_KEY = "ignored-domains";
+const SHORTCUT_PROMO_KEY = "shortcut-promo";
+const SHORTCUT_USED_KEY = "shortcut-used-at";
+const NEW_TAB_KEY = "newtab-widget";
+const FREE_DEEP_AUDIT_KEY = "free-deep-audit-used";
 
 export type AlertSensitivity = "important" | "all";
 export type DigestFrequency = "daily" | "weekly";
@@ -90,4 +94,61 @@ export async function setDomainIgnored(domain: string, ignored: boolean): Promis
 
 export async function isDomainIgnored(domain: string): Promise<boolean> {
   return (await listIgnoredDomains()).includes(domain.trim().toLowerCase());
+}
+
+/** The browser's normal new-tab page remains the default until opted in. */
+export async function newTabEnabled(): Promise<boolean> {
+  return (await db.settings.get(NEW_TAB_KEY))?.value === "true";
+}
+
+export async function setNewTabEnabled(enabled: boolean): Promise<void> {
+  await db.settings.put({ key: NEW_TAB_KEY, value: enabled ? "true" : "false" });
+}
+
+/** Every installation can run one deep audit before recurring Pro work begins. */
+export async function hasUsedFreeDeepAudit(): Promise<boolean> {
+  return (await db.settings.get(FREE_DEEP_AUDIT_KEY))?.value === "true";
+}
+
+/** Atomically claims the one complimentary deep audit. */
+export async function claimFreeDeepAudit(): Promise<boolean> {
+  return await db.transaction("rw", db.settings, async () => {
+    if ((await db.settings.get(FREE_DEEP_AUDIT_KEY))?.value === "true") return false;
+    await db.settings.put({ key: FREE_DEEP_AUDIT_KEY, value: "true" });
+    return true;
+  });
+}
+
+type ShortcutPromoState = { impressions: number; lastShownAt?: number };
+export async function shouldShowShortcutPromo(now = Date.now()): Promise<boolean> {
+  if (await db.settings.get(SHORTCUT_USED_KEY)) return false;
+  const row = await db.settings.get(SHORTCUT_PROMO_KEY);
+  let state: ShortcutPromoState = { impressions: 0 };
+  if (row) {
+    try {
+      const parsed = JSON.parse(row.value) as Partial<ShortcutPromoState>;
+      if (typeof parsed.impressions === "number") {
+        state = { impressions: parsed.impressions, lastShownAt: parsed.lastShownAt };
+      }
+    } catch {
+      // A damaged promo preference should not stop the popup from opening.
+    }
+  }
+  return state.impressions === 0 || (state.impressions === 1 && now - (state.lastShownAt ?? 0) >= 7 * 24 * 60 * 60 * 1000);
+}
+export async function recordShortcutPromoImpression(now = Date.now()): Promise<void> {
+  const row = await db.settings.get(SHORTCUT_PROMO_KEY);
+  let impressions = 0;
+  if (row) {
+    try {
+      const parsed = JSON.parse(row.value) as Partial<ShortcutPromoState>;
+      if (typeof parsed.impressions === "number") impressions = parsed.impressions;
+    } catch {
+      // Start a fresh bounded counter if an old preference was malformed.
+    }
+  }
+  await db.settings.put({ key: SHORTCUT_PROMO_KEY, value: JSON.stringify({ impressions: Math.min(2, impressions + 1), lastShownAt: now }) });
+}
+export async function recordShortcutUsed(): Promise<void> {
+  await db.settings.put({ key: SHORTCUT_USED_KEY, value: String(Date.now()) });
 }

@@ -21,7 +21,7 @@ export function OverviewPage() {
   }, []);
   const densest = scans.data?.slice().sort((a, b) => b.trackerCount - a.trackerCount || b.nodeCount - a.nodeCount)[0];
   const insights = insightLines(
-    stats.data ?? { sites: 0, domains: 0, connections: 0, trackers: 0, scansThisMonth: 0 },
+    stats.data ?? { sites: 0, domains: 0, connections: 0, trackers: 0 },
     densest?.domain,
     densest?.trackerCount,
   );

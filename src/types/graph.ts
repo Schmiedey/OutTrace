@@ -156,6 +156,8 @@ export type WatchedSiteRow = {
   lastScanId?: number;
   lastError?: string;
   alertMode?: "important" | "all" | "never";
+  /** A denied site remains in the list, but is manual-only until access is granted. */
+  accessGranted?: boolean;
 };
 
 export type SettingRow = {

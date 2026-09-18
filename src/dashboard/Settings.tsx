@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import { billingStatus } from "@/src/billing/client";
+import { billingStatus, launchCheckout, launchLogin } from "@/src/billing/client";
 import { Button } from "@/src/components/ui/button";
+import { Badge } from "@/src/components/ui/badge";
 import { LIST_ATTRIBUTION } from "@/src/analysis/categorizer";
 import { downloadJson } from "@/src/export/scanExport";
 import { importArchive, parseArchive } from "@/src/storage/archive";
@@ -17,9 +17,12 @@ import { historyCleanupPaused, resumeHistoryCleanup } from "@/src/storage/retent
 import { blockDomain } from "@/src/extension/block";
 import { usageStatus } from "@/src/telemetry/usage";
 import { QuietProtection } from "@/src/components/QuietProtection";
-import { notificationMode, setNotificationMode, type NotificationMode } from "@/src/storage/settings";
+import { newTabEnabled, notificationMode, setNewTabEnabled, setNotificationMode, type NotificationMode } from "@/src/storage/settings";
+import { useUpgradePrompt } from "@/src/components/UpgradePrompt";
+import { noteUsage } from "@/src/telemetry/usage";
 
 export function SettingsPage() {
+  const openUpgrade = useUpgradePrompt();
   const [cleared, setCleared] = useState(false);
   const [exported, setExported] = useState(false);
   const [imported, setImported] = useState<string | null>(null);
@@ -36,6 +39,8 @@ export function SettingsPage() {
   const usage = useAsync(usageStatus, []);
   const [usageBusy, setUsageBusy] = useState(false);
   const [usageMessage, setUsageMessage] = useState<string | null>(null);
+  const [contextMenuBusy, setContextMenuBusy] = useState(false);
+  const [contextMenuMessage, setContextMenuMessage] = useState<string | null>(null);
   const toggleUsage = async (): Promise<void> => {
     setUsageBusy(true);
     try {
@@ -49,7 +54,11 @@ export function SettingsPage() {
   };
   const delivery = useAsync(notificationMode, []);
   const ignored = useAsync(() => listIgnoredDomains(), []);
-  const billing = useAsync(() => billingStatus(), []);
+  const billing = useAsync(() => billingStatus(true), []);
+  const newTab = useAsync(newTabEnabled, []);
+  const [billingBusy, setBillingBusy] = useState<"checkout" | "restore" | "refresh" | null>(null);
+  const [billingMessage, setBillingMessage] = useState<string | null>(null);
+  const [newTabMessage, setNewTabMessage] = useState<string | null>(null);
 
   const clear = async (): Promise<void> => {
     const confirmed = window.confirm("Delete every saved scan, domain, and graph from this browser?");
@@ -103,6 +112,39 @@ export function SettingsPage() {
     setExported(true);
   };
 
+  const billingAction = async (action: "checkout" | "restore" | "refresh"): Promise<void> => {
+    setBillingBusy(action);
+    setBillingMessage(null);
+    try {
+      if (action === "checkout") {
+        await launchCheckout();
+        setBillingMessage("Checkout opened. LinkScope will return you to the Pro page after payment.");
+      } else if (action === "restore") {
+        await launchLogin();
+        setBillingMessage("Restore opened. LinkScope will return you to the Pro page after activation.");
+      } else {
+        await billingStatus(true);
+        billing.reload();
+        setBillingMessage("Pro status refreshed.");
+      }
+    } catch (error) {
+      setBillingMessage(error instanceof Error ? error.message : "Could not update Pro status.");
+    } finally {
+      setBillingBusy(null);
+    }
+  };
+
+  const toggleNewTab = async (): Promise<void> => {
+    try {
+      const enabled = !(newTab.data ?? false);
+      await setNewTabEnabled(enabled);
+      newTab.reload();
+      setNewTabMessage(enabled ? "New-tab widget enabled. Chrome may ask you to confirm the override." : "New-tab widget off. Your normal new-tab page will be used.");
+    } catch {
+      setNewTabMessage("Could not update the new-tab preference.");
+    }
+  };
+
   const onImportFile = async (file: File | undefined): Promise<void> => {
     if (!file) return;
     setImportBusy(true);
@@ -136,13 +178,34 @@ export function SettingsPage() {
         <h2 className="text-[15px] font-medium">Privacy</h2>
         <p className="mt-2 text-[14px] leading-relaxed text-mute">
           Manual checks use temporary current-tab access. Optional Quiet Protection quietly re-checks visited sites after a 6-second dwell, at most twice per site per day. It is off by default and requires optional site access.
-          Sites you explicitly add to Watching can be revisited daily or weekly from this browser. Scan contents stay on this device; ExtensionPay receives only
-          the account and subscription information needed to verify Pro. Single-page scans are unlimited on every plan.
-          Device-storage cleanup keeps up to 1,000 unsaved scans for one year on every plan; explicitly saved scans are excluded. No cloud account or scan sync is used.
+          Sites you explicitly add to Watching can be revisited daily or weekly from this browser. LinkScope itself has no account and never sends scan content anywhere; ExtensionPay and Stripe handle only the payment email/card details and Pro verification. Manual scans and local history use the same device-safety boundary on every plan. No cloud scan account or sync is used.
         </p>
         <QuietProtection />
         <p className="mt-2 text-[12px] text-mute">The toolbar normally stays blank. +N means unseen notable activity; ! means an important change. Hover for the last saved score and capture time.</p>
         <p className="mt-2 text-[12px] text-mute">Watching is separate: choose when you visit, daily, or weekly. Scheduled checks may briefly load the website in an inactive tab.</p>
+        <div className="mt-4 rounded-md border border-line bg-panel p-3">
+          <p className="text-[13px] text-ink">Right-click scan</p>
+          <p className="mt-1 text-[12px] text-mute">Enable “Scan with LinkScope” in the page menu. This adds no website access; choosing it uses the current page’s temporary access.</p>
+          <Button size="sm" variant="ghost" className="mt-2" disabled={contextMenuBusy} onClick={() => { setContextMenuBusy(true); setContextMenuMessage(null); void browser.permissions.request({ permissions: ["contextMenus"] }).then((granted) => setContextMenuMessage(granted ? "Right-click scanning enabled." : "Right-click scanning was not enabled.")).catch(() => setContextMenuMessage("Could not enable right-click scanning.")).finally(() => setContextMenuBusy(false)); }}>{contextMenuBusy ? "Enabling…" : "Enable right-click scan"}</Button>
+          {contextMenuMessage ? <p role="status" className="mt-2 text-[11px] text-mute">{contextMenuMessage}</p> : null}
+        </div>
+        <div className="mt-4 rounded-md border border-line bg-panel p-3">
+          <p className="text-[13px] text-ink">New-tab widget</p>
+          <p className="mt-1 text-[12px] text-mute">Off by default. When enabled, a lightweight LinkScope page shows your latest local scan, watched-site alert count, and a dashboard link. Turn it off any time to return to your normal new-tab page.</p>
+          <Button size="sm" variant="ghost" className="mt-2" disabled={newTab.loading} onClick={() => void toggleNewTab()}>{newTab.data ? "New-tab widget on · turn off" : "Show LinkScope on new tab"}</Button>
+          {newTabMessage ? <p role="status" className="mt-2 text-[11px] text-mute">{newTabMessage}</p> : null}
+        </div>
+      </section>
+      <section className="mb-8" aria-label="Pro access">
+        <h2 className="text-[15px] font-medium">Pro access</h2>
+        <p className="mt-2 text-[13px] leading-relaxed text-mute">LinkScope itself has no account and never receives your scan history. A one-time $14.99 payment is processed by ExtensionPay and Stripe, including the email and card details needed for your receipt.</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {!billing.data?.paid ? <Button className="whitespace-nowrap" disabled={billingBusy !== null || billing.data?.configured === false} onClick={() => void billingAction("checkout")}>{billingBusy === "checkout" ? "Opening checkout…" : "Upgrade to Pro"}</Button> : <Badge tone="lime" className="px-2 py-1 font-medium" role="status">Pro active</Badge>}
+          <Button variant="ghost" disabled={billingBusy !== null || billing.data?.configured === false} onClick={() => void billingAction("restore")}>{billingBusy === "restore" ? "Opening…" : "Restore purchase"}</Button>
+          <Button variant="ghost" disabled={billingBusy !== null} onClick={() => void billingAction("refresh")}>{billingBusy === "refresh" ? "Checking…" : "Refresh Pro status"}</Button>
+        </div>
+        {billingMessage ? <p role="status" className="mt-3 text-[12px] text-mute">{billingMessage}</p> : null}
+        {billing.data?.error ? <p role="alert" className="mt-2 text-[12px] text-rose">{billing.data.error}</p> : null}
       </section>
       <section className="mb-8" aria-label="Optional usage counts">
         <h2 className="text-[15px] font-medium">Local usage counts</h2>
@@ -164,7 +227,7 @@ export function SettingsPage() {
         </div>
         {backupMessage ? <p role="status" className="mt-3 text-[13px] text-lime">{backupMessage}</p> : null}
         {backupError ? <p role="alert" className="mt-3 text-[13px] text-rose">{backupError}</p> : null}
-        {cleanup.data ? <div className="mt-4 border border-line p-3"><p className="text-[13px] text-mute">History cleanup is paused after a restore, billing problem, or expired Pro access. Saved scans remain protected when cleanup resumes.</p><Button variant="ghost" className="mt-2" disabled={backupBusy} onClick={() => { if (window.confirm("Resume automatic history cleanup? Unsaved scans beyond your current plan's count or age limits may be deleted on the next scan. Download a backup first.")) void resumeHistoryCleanup().then(() => cleanup.reload()).catch(() => setBackupError("Could not resume cleanup.")); }}>Resume history cleanup</Button></div> : null}
+        {cleanup.data ? <div className="mt-4 border border-line p-3"><p className="text-[13px] text-mute">History cleanup is paused after a restore. Saved scans remain protected when cleanup resumes.</p><Button variant="ghost" className="mt-2" disabled={backupBusy} onClick={() => { if (window.confirm("Resume automatic history cleanup? Unsaved scans outside LinkScope’s shared one-year device-storage window may be deleted on the next scan. Download a backup first.")) void resumeHistoryCleanup().then(() => cleanup.reload()).catch(() => setBackupError("Could not resume cleanup.")); }}>Resume history cleanup</Button></div> : null}
         {pendingBlocks.data?.length ? <div className="mt-4"><h3 className="text-[13px] font-medium">Restored blocks awaiting permission</h3><ul className="mt-2 divide-y divide-line">{pendingBlocks.data.map((domain) => <li key={domain} className="flex items-center justify-between gap-3 py-2"><span className="text-[12px]">{domain}</span><Button variant="ghost" disabled={backupBusy} onClick={() => void activateBlock(domain)}>Enable block</Button></li>)}</ul></div> : null}
       </section>
       <section className="mb-8">
@@ -220,10 +283,10 @@ export function SettingsPage() {
       <section className="mb-8">
         <h2 className="text-[15px] font-medium">Export & import</h2>
         <p className="mt-2 mb-4 text-[14px] text-mute">
-          Pro can download every saved scan as JSON. Archives can be restored in any plan; duplicate scans are skipped.
+          Pro can download every saved scan as one JSON archive. Single-scan exports and complete backups are available on every plan; duplicate imported scans are skipped.
         </p>
         <div className="flex flex-wrap gap-2">
-          <Button variant="ghost" disabled={!billing.data?.paid} onClick={() => void exportAll()}>
+          <Button variant="ghost" disabled={false} onClick={() => { if (!billing.data?.paid) { noteUsage("export-locked-clicked"); openUpgrade(); return; } void exportAll(); }}>
             {exported ? "Archive downloaded" : billing.data?.paid ? "Export all scans" : "Export all · Pro"}
           </Button>
           <Button variant="ghost" disabled={importBusy} onClick={() => fileRef.current?.click()}>
@@ -239,7 +302,7 @@ export function SettingsPage() {
         </div>
         {imported ? <p className="mt-3 text-[13px] text-lime">{imported}</p> : null}
         {importError ? <p className="mt-3 text-[13px] text-rose">{importError}</p> : null}
-        {!billing.data?.paid ? <p className="mt-3 text-[12px] text-mute"><Link to="/pro" className="underline">View Pro</Link> for recurring monitoring and bulk exports. Complete local backups are free.</p> : null}
+        {!billing.data?.paid ? <p className="mt-3 text-[12px] text-mute">Pro adds recurring monitoring and bulk exports. Complete local backups remain free.</p> : null}
       </section>
       <section>
         <h2 className="text-[15px] font-medium">Danger zone</h2>

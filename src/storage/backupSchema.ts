@@ -16,7 +16,7 @@ const graph = z.object({ originDomain: domain, nodes: z.array(node), edges: z.ar
 const scan = z.object({ id, siteId: id, url, title: text, domain, timestamp: time, nodeCount: count, edgeCount: count, thirdPartyCount: count, trackerCount: count, savedAt: time.optional(), captureMode: z.enum(["snapshot", "watch", "scheduled", "automatic"]).optional(), durationMs: time.optional(), privacyScore: z.number().min(0).max(100).optional(), scoreVersion: count.optional(), unknownCount: count.optional(), iframeCount: count.optional() });
 
 // Explicit allowlist: future account credentials must never enter portable backups.
-export const BACKUP_SETTING_KEYS = ["notifications", "notification-mode", "automatic-protection", "automatic-protection-prompt", "alert-sensitivity", "digest-frequency", "ignored-domains", "followedDomains", "pending-block-domains"] as const;
+export const BACKUP_SETTING_KEYS = ["notifications", "notification-mode", "automatic-protection", "automatic-protection-prompt", "alert-sensitivity", "digest-frequency", "newtab-widget", "ignored-domains", "followedDomains", "pending-block-domains"] as const;
 
 export const backupSchema = z.object({
   kind: z.literal("linkscope-complete-backup"), formatVersion: z.literal(1), schemaVersion: z.literal(5), exportedAt: z.iso.datetime(),
@@ -34,13 +34,13 @@ export const backupSchema = z.object({
           if (!z.array(domain).safeParse(JSON.parse(row.value)).success) context.addIssue({ code: "custom", message: "Invalid domain preference" });
         } catch { context.addIssue({ code: "custom", message: "Invalid preference JSON" }); }
       }
-      if (["automatic-protection", "notifications"].includes(row.key) && !["true", "false"].includes(row.value)) context.addIssue({ code: "custom", message: "Invalid boolean preference" });
+      if (["automatic-protection", "notifications", "newtab-widget"].includes(row.key) && !["true", "false"].includes(row.value)) context.addIssue({ code: "custom", message: "Invalid boolean preference" });
       if (row.key === "alert-sensitivity" && !["all", "important"].includes(row.value)) context.addIssue({ code: "custom", message: "Invalid alert preference" });
       if (row.key === "digest-frequency" && !["daily", "weekly"].includes(row.value)) context.addIssue({ code: "custom", message: "Invalid digest preference" });
       if (row.key === "notification-mode" && !["none", "important", "weekly", "important-weekly"].includes(row.value)) context.addIssue({ code: "custom", message: "Invalid delivery preference" });
       if (row.key === "automatic-protection-prompt" && !["never-seen", "dismissed", "enabled"].includes(row.value)) context.addIssue({ code: "custom", message: "Invalid protection prompt preference" });
     })),
-    watchedSites: z.array(z.object({ domain, url, schedule: z.enum(["visit", "daily", "weekly"]), enabled: z.boolean(), createdAt: time, nextRunAt: time, lastRunAt: time.optional(), lastScanId: id.optional(), lastError: text.optional(), alertMode: z.enum(["important", "all", "never"]).optional() })),
+    watchedSites: z.array(z.object({ domain, url, schedule: z.enum(["visit", "daily", "weekly"]), enabled: z.boolean(), createdAt: time, nextRunAt: time, lastRunAt: time.optional(), lastScanId: id.optional(), lastError: text.optional(), alertMode: z.enum(["important", "all", "never"]).optional(), accessGranted: z.boolean().optional() })),
     audits: z.array(z.object({ id, domain, rootUrl: url, startedAt: time, status: z.enum(["discovering", "running", "completed", "cancelled", "failed"]), mode: z.enum(["quick", "standard", "deep"]), maxPages: count, waitMs: time, pagesDiscovered: count, pagesScanned: count, pagesFailed: count, uniqueDomains: count, thirdPartyCount: count, trackerCount: count, unknownCount: count, ownerCount: count }).passthrough()),
     auditPages: z.array(z.object({ id, auditId: id, url, path: text, title: text, status: z.enum(["queued", "scanning", "completed", "failed", "skipped"]), thirdPartyCount: count, trackerCount: count, unknownCount: count }).passthrough()),
     auditPageGraphs: z.array(graph.extend({ pageId: id, auditId: id })),

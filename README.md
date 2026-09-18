@@ -2,7 +2,7 @@
 
 Local-first Chrome extension that reads pages, shows who else is on them, and maps connected domains as a graph.
 
-Manual scans stay free. Opening LinkScope shows the latest saved capture first and never starts a scan by itself; use **Check this page** for an explicit capture. Optional **Quiet Protection** re-checks known sites after a 6-second dwell, with a 12-hour per-site cooldown, but never establishes a first-ever site baseline implicitly. It is off by default. **Watching** is separate: explicitly monitor a site when you visit, daily, or weekly. Scheduled checks briefly load a website in an inactive tab. Scan contents stay local. ExtensionPay handles the account and subscription status for Pro through Stripe.
+Manual scans are unlimited on every plan. Opening LinkScope shows the latest saved capture first and never starts a scan by itself; use **Check this page** for an explicit capture. Optional **Quiet Protection** re-checks known sites after a 6-second dwell, with a 12-hour per-site cooldown, but never establishes a first-ever site baseline implicitly. It is off by default. **Watching** is separate: explicitly monitor a site when you visit, daily, or weekly. Scheduled checks briefly load a website in an inactive tab. LinkScope itself has no account and sends no scan data anywhere. ExtensionPay and Stripe handle only the payment email/card details and Pro verification.
 
 ## Load unpacked
 
@@ -31,13 +31,13 @@ cp .env.example .env
 # Edit WXT_EXTPAY_EXTENSION_ID if your ExtensionPay slug is not "linkscope"
 ```
 
-Unpacked development builds automatically use ExtensionPay's development flow and Stripe test mode. Chrome Web Store builds use the live payment flow. Never put a Stripe secret key in this extension.
+Unpacked development builds automatically use ExtensionPay's development flow and Stripe test mode. Use Stripe's test card in hosted Checkout, then use ExtensionPay's **reset test payment data** control to switch the same test user between paid and unpaid before shipping. Chrome Web Store builds use the live payment flow. Never put a Stripe secret key in this extension.
 
 Connect the Stripe account from the ExtensionPay dashboard. LinkScope does not read Stripe publishable or secret API keys directly. Production builds and ZIPs run a secret scan and fail if a Stripe secret is found in the project.
 
 LinkScope's commercial build does not bundle Disconnect's non-commercial Tracker Protection dataset. Tracker categories use the original LinkScope curated classifications plus clearly labeled domain-name heuristics. The release guard fails a build if the removed dataset, generator, attribution, or classification source is reintroduced.
 
-Single-page scans, including 15-second deep scans, stay unlimited and free. Scores, graph explanations, branded PNG share cards, single-scan exports, saved scans, and complete local backups are free. Pro unlocks watchlists, scheduled checks, native digests/change alerts, deep multi-page audits, and bulk reporting/export. Every plan has the same device-storage safety limit: 1,000 unsaved scans or one year; saved scans are exempt. This is a retention boundary, not a scan quota.
+Free includes unlimited manual scans, scores, graph explanations, branded PNG share cards, single-scan exports, saved scans, complete local backups, one visit-only watched site, and one complimentary deep audit. Both plans use the same one-year/1,000-scan device-storage safety boundary; it is never a usage quota. A one-time $14.99 Pro purchase unlocks unlimited watched sites, scheduled checks, native digests/change alerts, ongoing deep multi-page audits, and bulk reporting/export. Pro access remains active indefinitely. LinkScope never sends scan history or page content to ExtensionPay/Stripe; payment email and card details are handled there for the receipt.
 
 The toolbar is normally blank: unscanned sites and routine/unchanged captures create no badge. On previously checked sites, `+N` counts unseen notable inbox events and `!` indicates important activity, including watched-site changes elsewhere. Hover explains the event and last saved capture; opening the popup surfaces other sites' activity too. Viewing an event clears it. Action writes are tab-specific and revision-guarded against stale navigation results.
 
@@ -67,22 +67,24 @@ Settings offers **Download complete backup** on every plan. This private JSON fi
 
 **Restore complete backup** validates the file and asks before replacing local records. Database replacement is transactional: failed writes roll back. Watching and automatic protection are turned off, interrupted audits become cancelled, and restored block domains await individual permission approval. Existing browser blocking rules and payment access are unchanged. Close other reports and finish running scans before restoring. Legacy scan-only archives still merge rather than replace.
 
-Restoring, a billing verification failure, or expired Pro access pauses automatic history cleanup. Review/export your data before explicitly resuming it. Previously verified Pro access has a 72-hour offline grace; repeated failures do not extend the verification timestamp.
+Restoring a complete backup pauses automatic history cleanup until you review the restored data and explicitly resume it. A cached paid result keeps one-time Pro access available during a temporary ExtensionPay/network outage; use **Refresh Pro status** when connectivity returns.
 
 Local data normally persists through updates when the extension ID and database name remain unchanged. Uninstalling, profile/device loss, or storage failures can remove it. **Protect local storage** asks the browser for persistence protection, but is not a replacement for external backups.
 
-The payment-success content script runs only on `https://extensionpay.com/*`; it lets successful payments and purchase restoration refresh the license cache. It does not scan browsing pages.
+The payment-success content script runs only on `https://extensionpay.com/*`; it lets successful payments and purchase restoration refresh the license cache, then returns the checkout tab to LinkScope's Pro page with a short confirmation state. It does not scan browsing pages. The optional new-tab widget is off by default; when enabled it reads only local summaries and can be turned off to return to the browser's normal new-tab page.
 
 ## Permissions
 
 - `activeTab` + `scripting` — scan the tab you clicked
 - `tabs` — open the graph / dashboard and update the badge from saved scans
-- `alarms` — wake hourly to run due daily or weekly checks for sites you explicitly watch
-- `storage` — retain ExtensionPay's local license token and cached subscription status
+- `alarms` — schedule the opt-in weekly digest and due checks for sites you explicitly watch
+- `storage` — retain ExtensionPay's local license token and cached Pro purchase status
 - `webRequest` — while a scan/watch is running, record initiator/document URLs for that tab
 - `notifications` — optional local alerts for watched-site changes or tracked domains
 - `declarativeNetRequest` — only if you click **Block this domain**; the resulting dynamic rule persists across browser restarts
-- Optional host access — requested for watched sites and standard audits. Quiet Protection asks for all-site access only from its explicit enable action after an explanation; it remains off by default. Free deep iframe scans also ask for all-site access because embedded frames can use unrelated origins. Blocking requests access only when used. There is no reporting endpoint or external analytics upload.
+- Optional host access — a watched site asks only for its exact hostname at the moment you add it, alongside a clear explanation. If declined, it remains on the watchlist for manual checks only. Visit alerts run only after a granted watched-origin navigation. Quiet Protection and deep iframe scans retain their separate explicit permission prompts. Removing a watched site revokes its matching hostname access. There is no reporting endpoint or external analytics upload.
+- Optional browser capabilities — Right-click scan and visit navigation observation are requested only when you enable those controls; neither grants website access. The weekly digest is off until selected in Settings and stays quiet when no new trackers appear.
+- `chrome_url_overrides.newtab` — the optional LinkScope new-tab summary is off by default and reads local data only. Disable it in Settings to return to the browser's normal new-tab page.
 
 No required host permissions. Pages are not injected at `document_start`.
 

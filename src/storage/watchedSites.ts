@@ -1,5 +1,6 @@
 import { registrableDomain } from "@/src/lib/domain";
 import { db } from "@/src/storage/database";
+import { watchlistOrigin } from "@/src/extension/watchlistPermission";
 import { noteUsage } from "@/src/telemetry/usage";
 import type { WatchedSiteRow, WatchedSiteSchedule } from "@/src/types/graph";
 
@@ -23,8 +24,13 @@ export async function listWatchedSites(): Promise<WatchedSiteRow[]> {
   return await db.watchedSites.orderBy("createdAt").reverse().toArray();
 }
 
-export async function isWatchedSite(domain: string): Promise<boolean> {
-  return Boolean((await db.watchedSites.get(domain))?.enabled);
+export async function isWatchedSite(domain: string, requireGrantedAccess = false): Promise<boolean> {
+  const row = await db.watchedSites.get(domain);
+  if (!row?.enabled) return false;
+  if (!requireGrantedAccess) return true;
+  if (row.accessGranted === false) return false;
+  if (typeof browser === "undefined" || !browser.permissions?.contains) return row.accessGranted === true;
+  return await browser.permissions.contains({ origins: [watchlistOrigin(row.url)] });
 }
 
 export async function listDueWatchedSites(now = Date.now()): Promise<WatchedSiteRow[]> {
@@ -38,6 +44,7 @@ export async function listDueWatchedSites(now = Date.now()): Promise<WatchedSite
 export async function addWatchedSite(
   value: string,
   schedule: WatchedSiteSchedule,
+  accessGranted = false,
 ): Promise<WatchedSiteRow> {
   const target = normalizeWatchedSiteUrl(value);
   const existing = await db.watchedSites.get(target.domain);
@@ -47,6 +54,7 @@ export async function addWatchedSite(
     url: target.url,
     schedule,
     enabled: true,
+    accessGranted,
     createdAt: existing?.createdAt ?? now,
     nextRunAt: schedule === "visit" ? Number.MAX_SAFE_INTEGER : existing?.nextRunAt ?? now,
     lastRunAt: existing?.lastRunAt,
