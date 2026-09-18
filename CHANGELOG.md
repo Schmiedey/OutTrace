@@ -3,8 +3,8 @@
 ## Unreleased
 
 - Made manual scans, local scan history, graphs, scores, and single-scan exports equally available on Free and Pro; retention is now a shared device-storage safety boundary rather than a paywall.
-- Added one complimentary deep audit for Free installations; subsequent deep audits open the in-place Pro checkout.
-- Locked deep-audit, bulk-export, and watched-site-limit actions now open the checkout dialog without losing the user’s current work.
+- Limited Free users to one site audit per local calendar day; Pro now unlocks unlimited site audits, with a clear in-place upgrade prompt at the limit.
+- Locked audit-limit, bulk-export, and watched-site-limit actions now open the checkout dialog without losing the user’s current work.
 - Added consent-only local measurement for paywall touches and checkout start/completion; it never records URLs, domains, or scan data.
 - Pro confirmation is now a short-lived payment animation; the persistent state is simply `Pro active`, and the popup no longer repeats a thank-you message.
 - Hardened the ExtensionPay return flow so checkout and Stripe billing navigation bring the user back to LinkScope even when the hosted tab changes or the original tab closes.

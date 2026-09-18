@@ -30,6 +30,8 @@ export type AuditRow = {
   completedAt?: number;
   status: AuditStatus;
   mode: AuditMode;
+  /** Internal marker so a running Free audit can resume after a worker restart. */
+  freeAuditClaimed?: boolean;
   maxPages: number;
   waitMs: number;
   pagesDiscovered: number;

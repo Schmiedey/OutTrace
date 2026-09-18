@@ -8,7 +8,7 @@ const IGNORED_DOMAINS_KEY = "ignored-domains";
 const SHORTCUT_PROMO_KEY = "shortcut-promo";
 const SHORTCUT_USED_KEY = "shortcut-used-at";
 const NEW_TAB_KEY = "newtab-widget";
-const FREE_DEEP_AUDIT_KEY = "free-deep-audit-used";
+const FREE_AUDIT_DAY_KEY = "free-audit-day";
 
 export type AlertSensitivity = "important" | "all";
 export type DigestFrequency = "daily" | "weekly";
@@ -105,16 +105,45 @@ export async function setNewTabEnabled(enabled: boolean): Promise<void> {
   await db.settings.put({ key: NEW_TAB_KEY, value: enabled ? "true" : "false" });
 }
 
-/** Every installation can run one deep audit before recurring Pro work begins. */
-export async function hasUsedFreeDeepAudit(): Promise<boolean> {
-  return (await db.settings.get(FREE_DEEP_AUDIT_KEY))?.value === "true";
+function localCalendarDay(now = Date.now()): string {
+  const date = new Date(now);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-/** Atomically claims the one complimentary deep audit. */
-export async function claimFreeDeepAudit(): Promise<boolean> {
-  return await db.transaction("rw", db.settings, async () => {
-    if ((await db.settings.get(FREE_DEEP_AUDIT_KEY))?.value === "true") return false;
-    await db.settings.put({ key: FREE_DEEP_AUDIT_KEY, value: "true" });
+type FreeAuditQuotaState = { day: string };
+
+function readFreeAuditQuotaState(value: string | undefined): FreeAuditQuotaState | undefined {
+  if (!value) return undefined;
+  try {
+    const parsed = JSON.parse(value) as Partial<FreeAuditQuotaState>;
+    return typeof parsed.day === "string" ? { day: parsed.day } : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Free users get one site audit per local calendar day. */
+export async function hasUsedFreeAuditToday(now = Date.now()): Promise<boolean> {
+  const state = readFreeAuditQuotaState((await db.settings.get(FREE_AUDIT_DAY_KEY))?.value);
+  return state?.day === localCalendarDay(now);
+}
+
+/**
+ * Atomically claims today's free site-audit allowance. An audit that already
+ * claimed the allowance can be resumed after a worker restart without
+ * consuming a second allowance.
+ */
+export async function claimFreeAuditToday(auditId: number, now = Date.now()): Promise<boolean> {
+  return await db.transaction("rw", db.settings, db.audits, async () => {
+    const audit = await db.audits.get(auditId);
+    if (audit?.freeAuditClaimed) return true;
+
+    const day = localCalendarDay(now);
+    const state = readFreeAuditQuotaState((await db.settings.get(FREE_AUDIT_DAY_KEY))?.value);
+    if (state?.day === day) return false;
+
+    await db.settings.put({ key: FREE_AUDIT_DAY_KEY, value: JSON.stringify({ day }) });
+    if (audit) await db.audits.update(auditId, { freeAuditClaimed: true });
     return true;
   });
 }

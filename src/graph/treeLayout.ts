@@ -21,6 +21,9 @@ function originIdOf(
   snapshot: ScanGraphSnapshot,
   nodes: ScanGraphSnapshot["nodes"],
 ): string | null {
+  // The global graph has multiple site roots. Use the synthetic "All sites"
+  // root instead of whichever site happens to be first in the merged data.
+  if (snapshot.originDomain === "global") return null;
   return (
     nodes.find((node) => node.isOrigin)?.domain ??
     nodes.find((node) => node.domain === snapshot.originDomain)?.domain ??
@@ -323,6 +326,8 @@ export function runTreeLayout(cy: Core, animate = true): void {
   const groupGap = 36;
   const groupX = 240;
   const leafX = 490;
+  const columnGap = 300;
+  const maxRows = 18;
 
   let y = 0;
   groups.forEach((group) => {
@@ -332,10 +337,16 @@ export function runTreeLayout(cy: Core, animate = true): void {
         (a, b) => Number(a.data("order") ?? 0) - Number(b.data("order") ?? 0),
       );
     const start = y;
+    const rows = Math.max(1, Math.min(maxRows, leaves.length));
     leaves.forEach((leaf, index) => {
-      positions.set(leaf.id(), { x: leafX, y: start + index * row });
+      const column = Math.floor(index / rows);
+      const rowIndex = index % rows;
+      positions.set(leaf.id(), {
+        x: leafX + column * columnGap,
+        y: start + rowIndex * row,
+      });
     });
-    const end = start + Math.max(leaves.length - 1, 0) * row;
+    const end = start + Math.max(rows - 1, 0) * row;
     positions.set(group.id(), { x: groupX, y: (start + end) / 2 });
     y = end + row + groupGap;
   });

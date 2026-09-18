@@ -2,10 +2,12 @@ import type { BillingStatus } from "@/src/billing/extpay";
 import type { WatchedSiteRow } from "@/src/types/graph";
 
 export const FREE_WATCHED_SITE_LIMIT = 1;
+export const FREE_AUDIT_LIMIT_MESSAGE = "Free includes one site audit per day. Upgrade to Pro for unlimited audits.";
 
 export type ProFeature =
   | "deep-scan"
   | "deep-audit"
+  | "unlimited-audits"
   | "scheduled-checks"
   | "unlimited-watched-sites"
   | "export"
@@ -14,6 +16,7 @@ export type ProFeature =
 const PRO_MESSAGES: Record<ProFeature, string> = {
   "deep-scan": "Single-page scans are free.",
   "deep-audit": "Deep audits require LinkScope Pro.",
+  "unlimited-audits": FREE_AUDIT_LIMIT_MESSAGE,
   "scheduled-checks": "Scheduled background checks require LinkScope Pro.",
   "unlimited-watched-sites": "Free includes one watched site. Upgrade to Pro for unlimited sites.",
   export: "Export requires LinkScope Pro.",

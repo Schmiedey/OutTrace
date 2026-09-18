@@ -42,7 +42,7 @@ export function GlobalGraphPage() {
       title="Global graph"
       subtitle={subtitle}
       backTo="/"
-      defaultLayout="force"
+      defaultLayout="tree"
       extras={
         <div className="ml-auto flex items-center gap-2">
           <span className="text-[12px] text-mute">Seen on</span>

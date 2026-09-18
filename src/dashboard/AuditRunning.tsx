@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { FREE_AUDIT_LIMIT_MESSAGE } from "@/src/billing/entitlements";
 import type { AuditProgress, AuditRow } from "@/src/audit/types";
 import { ScanProgressBar } from "@/src/components/ScanProgressBar";
 import { Button } from "@/src/components/ui/button";
+import { useUpgradePrompt } from "@/src/components/UpgradePrompt";
 import { auditProgress, getAudit } from "@/src/storage/audits";
 
 export function AuditRunningPage() {
@@ -13,6 +15,7 @@ export function AuditRunningPage() {
   const [error, setError] = useState<string | null>(null);
   const [recent, setRecent] = useState<string[]>([]);
   const runRequestInFlight = useRef(false);
+  const openUpgrade = useUpgradePrompt();
 
   useEffect(() => {
     if (!Number.isFinite(auditId)) return;
@@ -105,7 +108,12 @@ export function AuditRunningPage() {
           </div>
         ) : null}
       </div>
-      {error ? <p className="mt-5 text-[13px] text-rose">{error}</p> : null}
+      {error ? (
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <p className="text-[13px] text-rose">{error}</p>
+          {error === FREE_AUDIT_LIMIT_MESSAGE ? <Button variant="ghost" onClick={openUpgrade}>Upgrade to Pro</Button> : null}
+        </div>
+      ) : null}
       <Button variant="ghost" className="mt-6" onClick={() => void stop()}>Stop audit</Button>
     </div>
   );

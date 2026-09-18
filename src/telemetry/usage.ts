@@ -1,6 +1,6 @@
 import { db } from "@/src/storage/database";
 
-export const USAGE_EVENTS = ["consent-enabled", "product-opened", "manual-scan", "first-scan", "second-scan", "returned-day-7", "watchlist-added", "share-card-exported", "digest-delivered", "upgrade-opened", "deep-audit-locked-clicked", "export-locked-clicked", "checkout-started", "checkout-completed"] as const;
+export const USAGE_EVENTS = ["consent-enabled", "product-opened", "manual-scan", "first-scan", "second-scan", "returned-day-7", "watchlist-added", "share-card-exported", "digest-delivered", "upgrade-opened", "deep-audit-locked-clicked", "audit-limit-locked-clicked", "export-locked-clicked", "checkout-started", "checkout-completed"] as const;
 export type UsageEvent = (typeof USAGE_EVENTS)[number];
 type Counts = Partial<Record<UsageEvent, number>>;
 type UsageState = { enabled: boolean; enabledAt: number; scans: number; day7: boolean; totals: Counts; pending: Counts; lastSentAt: number };

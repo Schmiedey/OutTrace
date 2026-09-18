@@ -12,7 +12,10 @@ import {
   matchesSearch,
   neighborIds,
 } from "@/src/graph/filters";
-import type { GraphLayoutMode } from "@/src/graph/layouts";
+import {
+  DENSE_GLOBAL_NODE_THRESHOLD,
+  type GraphLayoutMode,
+} from "@/src/graph/layouts";
 import {
   buildTreeElements,
   isSyntheticTreeId,
@@ -76,6 +79,10 @@ const STYLESHEET: cytoscape.StylesheetStyle[] = [
     style: { label: "" },
   },
   {
+    selector: "node.dense-hidden",
+    style: { label: "" },
+  },
+  {
     selector: "edge",
     style: {
       width: "data(width)",
@@ -86,6 +93,10 @@ const STYLESHEET: cytoscape.StylesheetStyle[] = [
       opacity: 0.45,
       "overlay-opacity": 0,
     },
+  },
+  {
+    selector: ".dense-global-edge",
+    style: { opacity: 0.24 },
   },
   {
     selector: ".faded",
@@ -109,6 +120,7 @@ function buildElements(
   snapshot: ScanGraphSnapshot,
   nodes: ScanGraphSnapshot["nodes"],
   edges: ScanGraphSnapshot["edges"],
+  denseGlobal: boolean,
 ): ElementDefinition[] {
   const origin = snapshot.originDomain;
   const nodeEls: ElementDefinition[] = nodes.map((node) => ({
@@ -116,13 +128,22 @@ function buildElements(
     data: {
       id: node.domain,
       label: node.domain,
+      keyLabel:
+        !denseGlobal ||
+        node.isOrigin ||
+        node.isSite ||
+        node.referenceCount >= 2,
       color: VIZ_CATEGORY_COLORS[node.category],
-      size: node.isOrigin
-        ? 36
-        : Math.max(
-            16,
-            Math.min(28, 14 + Math.log2(node.referenceCount + 1) * 4),
-          ),
+      size: denseGlobal
+        ? node.isOrigin
+          ? 28
+          : Math.max(11, Math.min(22, 9 + Math.log2(node.referenceCount + 1) * 3))
+        : node.isOrigin
+          ? 36
+          : Math.max(
+              16,
+              Math.min(28, 14 + Math.log2(node.referenceCount + 1) * 4),
+            ),
       // Concentric layouts treat each numeric rank as a ring. Keep the origin
       // one ring outside its connections; a large sentinel (100) creates
       // dozens of empty rings and fits the real nodes off-screen.
@@ -143,6 +164,7 @@ function buildElements(
         color: EDGE_COLORS[edge.type],
         width: Math.min(1.8, 0.7 + Math.log2(edge.count + 1) * 0.35),
       },
+      classes: denseGlobal ? "dense-global-edge" : undefined,
     }));
 
   return [...nodeEls, ...edgeEls];
@@ -169,19 +191,22 @@ function runLayout(
   }
 
   if (mode === "force") {
+    const denseGlobal =
+      origin === "global" && cy.nodes().length >= DENSE_GLOBAL_NODE_THRESHOLD;
     cy.layout({
       name: "fcose",
       quality: animate ? "proof" : "default",
       randomize: true,
       animate: animate ? "end" : false,
       animationDuration: animate ? 720 : 0,
-      nodeRepulsion: () => 7200,
-      idealEdgeLength: () => 120,
-      edgeElasticity: () => 0.45,
-      gravity: 0.18,
-      gravityRange: 3.8,
+      nodeRepulsion: () => (denseGlobal ? 24000 : 7200),
+      idealEdgeLength: () => (denseGlobal ? 170 : 120),
+      edgeElasticity: () => (denseGlobal ? 0.3 : 0.45),
+      gravity: denseGlobal ? 0.06 : 0.18,
+      gravityRange: denseGlobal ? 2.4 : 3.8,
+      numIter: denseGlobal ? 2500 : undefined,
       packComponents: true,
-      nodeSeparation: 90,
+      nodeSeparation: denseGlobal ? 130 : 90,
       fit: true,
       padding: 64,
     } as LayoutOptions).run();
@@ -204,10 +229,23 @@ function applyFocus(
   selected: string | null,
   actives: string[],
   showLabels: boolean,
+  denseGlobal: boolean,
 ): void {
   cy.batch(() => {
-    cy.elements().removeClass("faded highlighted nolabel");
+    cy.elements().removeClass("faded highlighted nolabel dense-hidden");
     if (!showLabels) cy.nodes().addClass("nolabel");
+    if (showLabels && denseGlobal) {
+      const active = new Set(actives);
+      cy.nodes().forEach((node) => {
+        if (
+          node.data("keyLabel") !== true &&
+          node.id() !== selected &&
+          !active.has(node.id())
+        ) {
+          node.addClass("dense-hidden");
+        }
+      });
+    }
     if (actives.length > 0) {
       const active = new Set(actives);
       cy.elements().addClass("faded");
@@ -283,13 +321,17 @@ export const GraphCanvas = memo(function GraphCanvas({
       thirdPartyOnly,
     ],
   );
+  const denseGlobal =
+    snapshot.originDomain === "global" &&
+    filtered.nodes.length >= DENSE_GLOBAL_NODE_THRESHOLD;
 
   const elements = useMemo(
     () =>
       layoutMode === "tree"
         ? buildTreeElements(snapshot, filtered.nodes, filtered.edges)
-        : buildElements(snapshot, filtered.nodes, filtered.edges),
+        : buildElements(snapshot, filtered.nodes, filtered.edges, denseGlobal),
     [
+      denseGlobal,
       filtered.edges,
       filtered.nodes,
       layoutMode,
@@ -303,14 +345,25 @@ export const GraphCanvas = memo(function GraphCanvas({
       [
         snapshot.scanId,
         layoutMode,
-        filtered.nodes.map((node) => node.domain).join("\0"),
-        filtered.edges.map((edge) => edge.id).join("\0"),
+        filtered.nodes
+          .map((node) =>
+            [node.domain, node.referenceCount, node.category, node.isSite].join(":"),
+          )
+          .join("\0"),
+        filtered.edges
+          .map((edge) => [edge.id, edge.count, edge.type].join(":"))
+          .join("\0"),
       ].join("|"),
     [filtered.edges, filtered.nodes, layoutMode, snapshot.scanId],
   );
 
   const elementsRef = useRef(elements);
   elementsRef.current = elements;
+  const nodeIdsKey = useMemo(
+    () => filtered.nodes.map((node) => node.domain).join("\0"),
+    [filtered.nodes],
+  );
+  const lastNodeIdsKey = useRef<string | null>(null);
   const lastLayoutRequest = useRef<{
     mode: GraphLayoutMode;
     nonce: number;
@@ -425,7 +478,14 @@ export const GraphCanvas = memo(function GraphCanvas({
       observer.disconnect();
       container.removeEventListener("contextmenu", blockMenu);
       useGraphStore.getState().setCy(null);
+      try {
+        cy.stop();
+      } catch {
+        // The layout effect can run after Cytoscape has already been torn down.
+      }
       layoutRunningRef.current = false;
+      lastNodeIdsKey.current = null;
+      lastLayoutRequest.current = null;
       cy.destroy();
       cyRef.current = null;
     };
@@ -436,11 +496,14 @@ export const GraphCanvas = memo(function GraphCanvas({
     if (!cy) return;
 
     const previousRequest = lastLayoutRequest.current;
+    const nodeSetChanged = lastNodeIdsKey.current !== nodeIdsKey;
     const relayoutRequested =
       previousRequest === null ||
       previousRequest.mode !== layoutMode ||
       previousRequest.nonce !== layoutNonce ||
-      previousRequest.scanId !== snapshot.scanId;
+      previousRequest.scanId !== snapshot.scanId ||
+      (layoutMode === "force" && nodeSetChanged);
+    lastNodeIdsKey.current = nodeIdsKey;
     lastLayoutRequest.current = {
       mode: layoutMode,
       nonce: layoutNonce,
@@ -480,15 +543,23 @@ export const GraphCanvas = memo(function GraphCanvas({
 
     return () => {
       cancelled = true;
+      if (layoutRunningRef.current) {
+        try {
+          cy.stop();
+        } catch {
+          // Cytoscape may already be destroyed during a mode switch.
+        }
+        lastLayoutRequest.current = null;
+      }
       layoutRunningRef.current = false;
     };
-  }, [elementsKey, layoutMode, layoutNonce, snapshot.originDomain]);
+  }, [elementsKey, layoutMode, layoutNonce, nodeIdsKey, snapshot.originDomain]);
 
   useEffect(() => {
     const cy = cyRef.current;
     if (!cy) return;
-    applyFocus(cy, selectedNode, actives, showLabels);
-  }, [actives, selectedNode, showLabels]);
+    applyFocus(cy, selectedNode, actives, showLabels, denseGlobal);
+  }, [actives, denseGlobal, selectedNode, showLabels]);
 
   return (
     <div className="relative h-full min-h-[240px] w-full flex-1">

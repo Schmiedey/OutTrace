@@ -1,10 +1,15 @@
-import { BellRing, Check, Clock3, Database, Eye, ShieldCheck, X } from "lucide-react";
+import { BellRing, Check, ClipboardCheck, Clock3, Database, Eye, ShieldCheck, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import type { BillingStatus } from "@/src/billing/extpay";
 import { billingStatus, launchCheckout, launchLogin } from "@/src/billing/client";
 import { Button } from "@/src/components/ui/button";
 
 const BENEFITS = [
+  {
+    icon: ClipboardCheck,
+    title: "Unlimited site audits",
+    description: "Run another audit whenever you need a fresh site-wide view, including deeper iframe-aware checks.",
+  },
   {
     icon: BellRing,
     title: "Know when a site changes",
@@ -108,10 +113,10 @@ export function UpgradeDialog({ open, status, onClose, onStatusChange }: Upgrade
               <span className="font-display text-lg leading-none text-mute">Pro</span>
             </div>
             <h2 id={titleId} className="font-display mt-4 max-w-lg text-4xl leading-[1.05]">
-              Let LinkScope keep watch.
+              Keep auditing and keep watch.
             </h2>
             <p className="mt-3 max-w-xl text-[14px] leading-relaxed text-mute">
-              One payment unlocks recurring monitoring and multi-site reporting—without sending your scan history to a cloud dashboard.
+              Free includes one site audit per day. One payment unlocks unlimited audits, recurring monitoring, and multi-site reporting—without sending your scan history to a cloud dashboard.
             </p>
 
             <div className="mt-7 grid gap-x-6 gap-y-5 sm:grid-cols-2">
@@ -134,7 +139,7 @@ export function UpgradeDialog({ open, status, onClose, onStatusChange }: Upgrade
             <p className="font-display mt-2 text-4xl">$14.99</p>
             <p className="text-[12px] text-mute">pay once, keep Pro access</p>
             <ul className="mt-6 space-y-2.5 text-[12px]">
-              {["Unlimited watched sites", "Daily or weekly checks", "Native digests", "Change alerts and diffs", "Deep audits + multi-site export"].map((item) => (
+              {["Unlimited site audits", "Unlimited watched sites", "Daily or weekly checks", "Native digests", "Change alerts and diffs", "Deep audits + multi-site export"].map((item) => (
                 <li key={item} className="flex items-start gap-2">
                   <Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <span>{item}</span>

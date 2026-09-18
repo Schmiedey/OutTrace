@@ -3,10 +3,11 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { billingStatus } from "@/src/billing/client";
 import { AUDIT_MODES, type AuditMode } from "@/src/audit/types";
 import { canonicalAuditUrl } from "@/src/audit/url";
+import { FREE_AUDIT_LIMIT_MESSAGE } from "@/src/billing/entitlements";
 import { Button } from "@/src/components/ui/button";
 import { createAudit } from "@/src/storage/audits";
 import { useAsync } from "@/src/lib/useAsync";
-import { hasUsedFreeDeepAudit } from "@/src/storage/settings";
+import { hasUsedFreeAuditToday } from "@/src/storage/settings";
 import { useUpgradePrompt } from "@/src/components/UpgradePrompt";
 import { noteUsage } from "@/src/telemetry/usage";
 
@@ -18,8 +19,14 @@ export function AuditNewPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const billing = useAsync(() => billingStatus(), []);
-  const freeDeepAudit = useAsync(hasUsedFreeDeepAudit, []);
+  const freeAudit = useAsync(hasUsedFreeAuditToday, []);
   const openUpgrade = useUpgradePrompt();
+  const freeAuditLocked = billing.data?.paid === false && freeAudit.data === true;
+
+  const openAuditUpgrade = (): void => {
+    noteUsage("audit-limit-locked-clicked");
+    openUpgrade();
+  };
 
   useEffect(() => {
     if (url) return;
@@ -34,9 +41,8 @@ export function AuditNewPage() {
       setError("Enter a valid http or https website URL.");
       return;
     }
-    if (mode === "deep" && !billing.data?.paid && freeDeepAudit.data) {
-      noteUsage("deep-audit-locked-clicked");
-      openUpgrade();
+    if (freeAuditLocked) {
+      openAuditUpgrade();
       return;
     }
     setBusy(true);
@@ -75,22 +81,31 @@ export function AuditNewPage() {
         <div className="mt-2 grid gap-2 sm:grid-cols-3">
           {(Object.keys(AUDIT_MODES) as AuditMode[]).map((key) => {
             const item = AUDIT_MODES[key];
-            const locked = key === "deep" && !billing.data?.paid && freeDeepAudit.data === true;
             return (
-              <label key={key} className={`rounded-md border px-4 py-4 ${locked ? "cursor-pointer opacity-70" : "cursor-pointer"} ${mode === key ? "border-ink bg-raised" : "border-line"}`}>
-                <input className="sr-only" type="radio" name="audit-mode" value={key} checked={mode === key} onChange={() => { if (locked) { noteUsage("deep-audit-locked-clicked"); openUpgrade(); } else setMode(key); }} />
-                <span className="block text-[14px] font-medium">{item.label}{locked ? " · Pro" : key === "deep" && !billing.data?.paid ? " · First one free" : ""}</span>
+              <label key={key} className={`cursor-pointer rounded-md border px-4 py-4 ${mode === key ? "border-ink bg-raised" : "border-line"}`}>
+                <input className="sr-only" type="radio" name="audit-mode" value={key} checked={mode === key} onChange={() => setMode(key)} />
+                <span className="block text-[14px] font-medium">{item.label}</span>
                 <span className="mt-1 block text-[12px] text-mute">Up to {String(item.maxPages)} pages · {item.waitMs / 1000}s per page</span>
               </label>
             );
           })}
         </div>
-        {!billing.data?.paid ? <p className="mt-3 text-[12px] text-mute">Your first iframe-aware deep audit is free. Pro unlocks ongoing deep audits and recurring monitoring.</p> : null}
+        {!billing.data?.paid ? <p className="mt-3 text-[12px] text-mute">{freeAuditLocked ? `${FREE_AUDIT_LIMIT_MESSAGE} Your allowance resets tomorrow.` : "Free includes one site audit per day. Pro unlocks unlimited audits, deeper visibility, and recurring monitoring."}</p> : null}
       </fieldset>
 
+      {freeAuditLocked ? (
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-md border border-line bg-panel px-4 py-4">
+          <div>
+            <p className="text-[13px] font-medium">Keep auditing whenever you need.</p>
+            <p className="mt-1 text-[12px] text-mute">Unlock unlimited site audits with a one-time Pro purchase.</p>
+          </div>
+          <Button variant="ghost" onClick={openAuditUpgrade}>Upgrade to Pro</Button>
+        </div>
+      ) : null}
+
       {error ? <p className="mt-5 text-[13px] text-rose">{error}</p> : null}
-      <Button className="mt-8" disabled={busy || !url.trim()} onClick={() => void startAudit()}>
-        {busy ? "Starting…" : "Start audit"}
+      <Button className="mt-8" disabled={busy || !url.trim() || billing.loading || freeAudit.loading} onClick={() => void startAudit()}>
+        {busy ? "Starting…" : freeAuditLocked ? "Upgrade to Pro" : "Start audit"}
       </Button>
     </div>
   );

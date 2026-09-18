@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { FREE_WATCHED_SITE_LIMIT, requirePro, requireWatchlistCapacity, runProAction } from "@/src/billing/entitlements";
+import { FREE_AUDIT_LIMIT_MESSAGE, FREE_WATCHED_SITE_LIMIT, requirePro, requireWatchlistCapacity, runProAction } from "@/src/billing/entitlements";
 
 describe("Pro entitlements", () => {
   it("keeps single-page deep scans and local history free", () => {
@@ -28,6 +28,11 @@ describe("Pro entitlements", () => {
       "Deep audits require LinkScope Pro.",
     );
     expect(() => requirePro({ paid: true }, "deep-audit")).not.toThrow();
+  });
+
+  it("explains the daily Free audit limit", () => {
+    expect(() => requirePro({ paid: false }, "unlimited-audits")).toThrow(FREE_AUDIT_LIMIT_MESSAGE);
+    expect(() => requirePro({ paid: true }, "unlimited-audits")).not.toThrow();
   });
 
   it("allows one free watched site and removes the limit for Pro", () => {

@@ -17,7 +17,7 @@ import {
 } from "@/src/storage/audits";
 import { getBillingStatus } from "@/src/billing/extpay";
 import { requirePro } from "@/src/billing/entitlements";
-import { claimFreeDeepAudit } from "@/src/storage/settings";
+import { claimFreeAuditToday } from "@/src/storage/settings";
 
 type AuditRunnerOptions = {
   onProgress?: (progress: AuditProgress) => void;
@@ -64,10 +64,8 @@ export async function runAudit(auditId: number, options: AuditRunnerOptions = {}
   let tabId: number | undefined;
 
   try {
-    if (audit.mode === "deep") {
-      const billing = await getBillingStatus();
-      if (!billing.paid && !(await claimFreeDeepAudit())) requirePro(billing, "deep-audit");
-    }
+    const billing = await getBillingStatus();
+    if (!billing.paid && !(await claimFreeAuditToday(auditId))) requirePro(billing, "unlimited-audits");
     // Open the reusable audit tab before optional sitemap discovery. A slow or
     // non-responsive robots.txt must never prevent the root page from being
     // checked and shown as progress.
