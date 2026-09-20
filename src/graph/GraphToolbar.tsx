@@ -133,6 +133,7 @@ export function GraphToolbar({ extras }: { extras?: ReactNode }) {
           <Button variant="subtle" size="sm" onClick={resetFilters}>
             Reset
           </Button>
+          <span className="text-[11px] text-mute">Select a node · Delete to hide</span>
           {extras}
         </div>
       </div>

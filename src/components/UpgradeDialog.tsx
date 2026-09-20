@@ -116,7 +116,7 @@ export function UpgradeDialog({ open, status, onClose, onStatusChange }: Upgrade
               Keep auditing and keep watch.
             </h2>
             <p className="mt-3 max-w-xl text-[14px] leading-relaxed text-mute">
-              Free includes one site audit per day. One payment unlocks unlimited audits, recurring monitoring, and multi-site reporting—without sending your scan history to a cloud dashboard.
+              Free watches lightly as you browse, with one deep-capable site audit a day and two visit-only watched sites. One payment unlocks unlimited audits and scheduled monitoring—even when you are not there—without sending scan history to a cloud dashboard.
             </p>
 
             <div className="mt-7 grid gap-x-6 gap-y-5 sm:grid-cols-2">

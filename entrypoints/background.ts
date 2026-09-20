@@ -54,7 +54,7 @@ import {
   updateWatchedSiteAlertMode,
 } from "@/src/storage/watchedSites";
 import type { WatchedSiteSchedule } from "@/src/types/graph";
-import { setUsageConsent } from "@/src/telemetry/usage";
+import { sendUsageCounts, setUsageConsent } from "@/src/telemetry/usage";
 
 type AuditTarget = {
   tabId: number;
@@ -214,6 +214,10 @@ async function ensureWeeklyDigestAlarm(): Promise<void> {
 }
 
 export default defineBackground(() => {
+  browser.runtime.onInstalled.addListener((details) => {
+    if (details.reason !== "install") return;
+    void browser.tabs.create({ url: browser.runtime.getURL("/app.html#/welcome") });
+  });
   // The API permission is optional. If the user has not enabled it, this
   // simply leaves the browser's context menu untouched.
   createScanContextMenu();
@@ -233,6 +237,7 @@ export default defineBackground(() => {
     // Optional browser APIs may be unavailable until explicitly enabled.
   }
   startBillingBackground();
+  void sendUsageCounts(false).catch(() => undefined);
   installRequestCapture();
   void installWatchedSiteSchedule().catch((error: unknown) => {
     console.error(
@@ -374,7 +379,10 @@ export default defineBackground(() => {
     }
     if (message?.type === "SET_USAGE_CONSENT") {
       void setUsageConsent(message.enabled === true)
-        .then(() => sendResponse({ ok: true }))
+        .then(async () => {
+          if (message.enabled === true) await sendUsageCounts(true);
+          sendResponse({ ok: true });
+        })
         .catch(() =>
           sendResponse({ ok: false, error: "Could not update usage consent." }),
         );

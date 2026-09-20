@@ -73,9 +73,9 @@ export function ActivityInbox() {
   );
   return (
     <section className="mb-10" aria-label="Activity inbox">
-      <h2 className="font-display text-2xl">Activity</h2>
+      <h2 className="font-display text-2xl">Changes to review</h2>
       <p className="mt-1 mb-3 text-[12px] text-mute">
-        Important + Notable · local history, no daily ritual required
+        Review new trackers and notable service changes across your sites.
       </p>
       {activity.error ? (
         <p role="alert" className="text-rose">

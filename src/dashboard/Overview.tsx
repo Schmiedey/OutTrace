@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { groupSnapshotByOwner, mergeOwnerGroups } from "@/src/analysis/owners";
 import { insightLines } from "@/src/analysis/statistics";
 import { AuditSiteCard } from "@/src/components/AuditSiteCard";
+import { GettingStarted } from "@/src/components/GettingStarted";
 import { ActivityInbox } from "@/src/components/ActivityInbox";
 import { OwnerGroups } from "@/src/components/OwnerGroups";
 import { formatCount, formatRelativeTime } from "@/src/lib/utils";
@@ -29,13 +30,15 @@ export function OverviewPage() {
   return (
     <div className="px-10 py-10">
       <header className="mb-10">
-        <h1 className="font-display text-4xl">Your map so far</h1>
+        <h1 className="font-display text-4xl">Your website briefing</h1>
         {stats.data ? (
           <p className="mt-2 text-[13px] text-mute">
             You’ve scanned {formatCount(stats.data.scansThisMonth)} {stats.data.scansThisMonth === 1 ? "site" : "sites"} this month.
           </p>
         ) : null}
       </header>
+      <GettingStarted />
+      <ActivityInbox />
       {briefing.data ? (
         <section className="mb-8 grid gap-px overflow-hidden rounded-md border border-line bg-line lg:grid-cols-[1.5fr_1fr]">
           <div className="bg-canvas px-5 py-5">
@@ -66,7 +69,6 @@ export function OverviewPage() {
         <StatCard label="Connections" value={stats.data?.connections} />
         <StatCard label="Third-party trackers" value={stats.data?.trackers} />
       </section>
-      <ActivityInbox />
       <section className="mb-10">
         <h2 className="mb-3 text-[13px] text-mute">Notes</h2>
         <ul className="space-y-1.5">
@@ -136,7 +138,7 @@ function EmptyState() {
     <div className="py-10">
       <p className="font-display text-2xl">No scans yet</p>
       <p className="mt-2 text-[13px] text-mute">
-        Open a website and click the LinkScope icon, or turn on automatic protection in Settings.
+        Open a website and choose “Check this page” in LinkScope. Then watch it to compare future captures.
       </p>
     </div>
   );

@@ -21,6 +21,8 @@ import { SiteDetailPage } from "@/src/dashboard/SiteDetail";
 import { SitesPage } from "@/src/dashboard/Sites";
 import { WatchingPage } from "@/src/dashboard/Watching";
 import { ProPage } from "@/src/dashboard/Pro";
+import { ClientReportPage } from "@/src/dashboard/ClientReport";
+import { WelcomePage } from "@/src/dashboard/Welcome";
 
 export function App() {
   useEffect(() => { noteUsage("product-opened"); }, []);
@@ -30,6 +32,9 @@ export function App() {
         <Route path="/graph/:scanId" element={<GraphPage />} />
         <Route path="/global" element={<GlobalGraphPage />} />
         <Route path="/watching" element={<WatchingPage />} />
+        <Route path="/reports/:scanId" element={<ClientReportPage />} />
+        <Route path="/reports/:scanId/compare/:fromId" element={<ClientReportPage />} />
+        <Route path="/welcome" element={<WelcomePage />} />
         <Route element={<AppShell />}>
           <Route path="/" element={<OverviewPage />} />
           <Route path="/scans" element={<ScansPage />} />

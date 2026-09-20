@@ -1,8 +1,16 @@
 # LinkScope
 
-Local-first Chrome extension that reads pages, shows who else is on them, and maps connected domains as a graph.
+Local-first Chrome extension for people who maintain websites: inspect third-party connections, watch for changes after updates, and prepare client reports.
 
 Manual scans are unlimited on every plan. Opening LinkScope shows the latest saved capture first and never starts a scan by itself; use **Check this page** for an explicit capture. Optional **Quiet Protection** re-checks known sites after a 6-second dwell, with a 12-hour per-site cooldown, but never establishes a first-ever site baseline implicitly. It is off by default. **Watching** is separate: explicitly monitor a site when you visit, daily, or weekly. Scheduled checks briefly load a website in an inactive tab. LinkScope itself has no account and sends no scan data anywhere. ExtensionPay and Stripe handle only the payment email/card details and Pro verification.
+
+## Client website workflow
+
+The welcome page opens a website you choose and guides your first manual capture. The popup then offers monitoring setup. **Portfolio** brings scanned and watched sites together, puts unread meaningful changes first, and shows failed checks or missing site access. Merely opening Overview does not mark activity as read.
+
+**Client report** is available from site history, graph controls, the popup, and change comparisons. It includes observed third-party resource domains, classification sources, capture dates, changes, and suggested follow-up. Initial captures are labeled as starting points. Passive hyperlinks, page titles, full URLs, and raw evidence are excluded. Reports remain local and can be downloaded as text or printed / saved as PDF through the browser. Review included domains before sharing.
+
+Single-site reports are free. Existing one-time Pro entitlements remain unchanged. Scheduled checks require the browser to be running; LinkScope does not provide always-on cloud monitoring.
 
 ## Load unpacked
 
@@ -37,7 +45,7 @@ Connect the Stripe account from the ExtensionPay dashboard. LinkScope does not r
 
 LinkScope's commercial build does not bundle Disconnect's non-commercial Tracker Protection dataset. Tracker categories use the original LinkScope curated classifications plus clearly labeled domain-name heuristics. The release guard fails a build if the removed dataset, generator, attribution, or classification source is reintroduced.
 
-Free includes unlimited manual scans, scores, graph explanations, branded PNG share cards, single-scan exports, saved scans, complete local backups, one visit-only watched site, and one site audit per local calendar day. Both plans use the same one-year/1,000-scan device-storage safety boundary; it is never a usage quota. A one-time $14.99 Pro purchase unlocks unlimited site audits, unlimited watched sites, scheduled checks, native digests/change alerts, deep multi-page audits, and bulk reporting/export. Pro access remains active indefinitely. LinkScope never sends scan history or page content to ExtensionPay/Stripe; payment email and card details are handled there for the receipt.
+Free includes unlimited manual scans, scores, graph explanations, branded PNG share cards, single-scan exports, saved scans, complete local backups, two visit-only watched sites, and one site audit per local calendar day. The daily free audit can use the same deep iframe-aware mode as Pro. Both plans use the same one-year/1,000-scan device-storage safety boundary; it is never a usage quota. A one-time $14.99 Pro purchase unlocks unlimited site audits, unlimited watched sites, scheduled checks, native digests/change alerts, and bulk reporting/export. Pro access remains active indefinitely. LinkScope never sends scan history or page content to ExtensionPay/Stripe; payment email and card details are handled there for the receipt.
 
 The toolbar is normally blank: unscanned sites and routine/unchanged captures create no badge. On previously checked sites, `+N` counts unseen notable inbox events and `!` indicates important activity, including watched-site changes elsewhere. Hover explains the event and last saved capture; opening the popup surfaces other sites' activity too. Viewing an event clears it. Action writes are tab-specific and revision-guarded against stale navigation results.
 
@@ -57,7 +65,7 @@ Scans open a plain-English report before the graph. Model v2 starts at 100 and s
 
 Settings offers an off-by-default usage toggle. Reports contain only allowlisted aggregate event counts: no URLs, domains, page content, scores, timestamps, or persistent identifiers. Revoking consent erases counters and the unsent queue. Complete backups never transfer telemetry consent.
 
-Usage counts are strictly local-only and off by default. Users can manually export a count-only file for review and choose whether to share it themselves. No reporting service, endpoint permission, or automatic upload exists, even if an old environment setting names a receiver. There is no developer analytics dashboard. See `docs/usage-reporting.md` for funnel semantics.
+When a release is built with `WXT_USAGE_ENDPOINT`, opting in also sends pending count totals at most once a day. The payload contains the fixed event names and integer totals only—no URL, domain, scan content, score, client timestamp, user ID, or install ID. Failed sends remain queued locally. Builds without a configured receiver remain local-only. Users can export the same count-only file for review, and opting out erases local totals and the unsent queue. See `docs/usage-reporting.md` for the exact contract and receiver setup.
 
 ## Local durability and recovery
 
@@ -82,7 +90,7 @@ The payment-success content script runs only on `https://extensionpay.com/*`; it
 - `webRequest` — while a scan/watch is running, record initiator/document URLs for that tab
 - `notifications` — optional local alerts for watched-site changes or tracked domains
 - `declarativeNetRequest` — only if you click **Block this domain**; the resulting dynamic rule persists across browser restarts
-- Optional host access — a watched site asks only for its exact hostname at the moment you add it, alongside a clear explanation. If declined, it remains on the watchlist for manual checks only. Visit alerts run only after a granted watched-origin navigation. Quiet Protection and deep iframe scans retain their separate explicit permission prompts. Removing a watched site revokes its matching hostname access. There is no reporting endpoint or external analytics upload.
+- Optional host access — a watched site asks only for its exact hostname at the moment you add it, alongside a clear explanation. If declined, it remains on the watchlist for manual checks only. Visit alerts run only after a granted watched-origin navigation. Quiet Protection and deep iframe scans retain their separate explicit permission prompts. Removing a watched site revokes its matching hostname access. If a count receiver is configured, enabling anonymous usage counts asks separately for access to that exact HTTPS receiver origin.
 - Optional browser capabilities — Right-click scan and visit navigation observation are requested only when you enable those controls; neither grants website access. The weekly digest is off until selected in Settings and stays quiet when no new trackers appear.
 - `chrome_url_overrides.newtab` — the optional LinkScope new-tab summary is off by default and reads local data only. Disable it in Settings to return to the browser's normal new-tab page.
 

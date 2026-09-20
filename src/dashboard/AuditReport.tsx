@@ -88,6 +88,14 @@ export function AuditReportPage() {
         <div className="mt-4 flex flex-wrap gap-2">{categories.map((item) => <span key={item.category} className="rounded-full border border-line px-3 py-1.5 text-[12px]">{CATEGORY_LABELS[item.category]} {item.count}</span>)}</div>
         {domainRows.some((domain) => isTrackerCategory(domain.category) && domain.pageCount / Math.max(1, row.pagesScanned) >= 0.8) ? <p className="mt-5 text-[13px] text-amber">Attention: at least one tracker appears on 80% or more of audited pages.</p> : null}
       </section>
+      {!billing.data?.paid ? (
+        <section className="mt-10 flex max-w-3xl flex-wrap items-center justify-between gap-4 border-t border-line pt-6">
+          <p className="text-[13px] text-mute">
+            {formatCount(row.trackerCount)} tracker {row.trackerCount === 1 ? "domain" : "domains"} across {formatCount(row.pagesScanned)} {row.pagesScanned === 1 ? "page" : "pages"}. Pro adds scheduled monitoring and multi-site exports.
+          </p>
+          <Link className="text-[13px] text-ink underline underline-offset-2" to="/pro">See Pro</Link>
+        </section>
+      ) : null}
     </div>
   );
 }

@@ -103,12 +103,13 @@ export function SiteDetailPage() {
                   domains are shown but do not lower the score.
                 </p>
                 <div className="mt-5 flex flex-wrap gap-3">
+                  {latest.id !== undefined ? <Link to={`/reports/${latest.id}`} className="inline-flex h-9 items-center rounded-md border border-line px-3.5 text-[13px] font-medium">Client report</Link> : null}
                   {latest.id !== undefined ? (
                     <Link
                       to={`/graph/${String(latest.id)}`}
                       className="inline-flex h-9 items-center rounded-md bg-ink px-3.5 text-[13px] font-medium text-canvas hover:bg-ink/90"
                     >
-                      Inspect graph
+                      Inspect connections
                     </Link>
                   ) : null}
                   <Link

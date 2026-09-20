@@ -1,7 +1,7 @@
 import type { BillingStatus } from "@/src/billing/extpay";
 import type { WatchedSiteRow } from "@/src/types/graph";
 
-export const FREE_WATCHED_SITE_LIMIT = 1;
+export const FREE_WATCHED_SITE_LIMIT = 2;
 export const FREE_AUDIT_LIMIT_MESSAGE = "Free includes one site audit per day. Upgrade to Pro for unlimited audits.";
 
 export type ProFeature =
@@ -10,25 +10,23 @@ export type ProFeature =
   | "unlimited-audits"
   | "scheduled-checks"
   | "unlimited-watched-sites"
-  | "export"
-  | "extended-history";
+  | "export";
 
 const PRO_MESSAGES: Record<ProFeature, string> = {
   "deep-scan": "Single-page scans are free.",
   "deep-audit": "Deep audits require LinkScope Pro.",
   "unlimited-audits": FREE_AUDIT_LIMIT_MESSAGE,
   "scheduled-checks": "Scheduled background checks require LinkScope Pro.",
-  "unlimited-watched-sites": "Free includes one watched site. Upgrade to Pro for unlimited sites.",
+  "unlimited-watched-sites": "Free includes two watched sites. Upgrade to Pro for unlimited sites.",
   export: "Export requires LinkScope Pro.",
-  "extended-history": "Extended history requires LinkScope Pro.",
 };
 
 export function requirePro(status: Pick<BillingStatus, "paid">, feature: ProFeature): void {
-  if (feature === "deep-scan" || feature === "extended-history") return;
+  if (feature === "deep-scan") return;
   if (!status.paid) throw new Error(PRO_MESSAGES[feature]);
 }
 
-/** Free users can keep one explicitly watched site; Pro removes that limit. */
+/** Free users can keep two explicitly watched sites; Pro removes that limit. */
 export function requireWatchlistCapacity(
   status: Pick<BillingStatus, "paid">,
   sites: Pick<WatchedSiteRow, "domain">[],

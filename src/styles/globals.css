@@ -124,3 +124,10 @@ input {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
 }
+
+@media print {
+  @page { margin: 16mm; }
+  html, body, #root { height: auto; background: white; }
+  tr { break-inside: avoid; }
+  h2 { break-after: avoid; }
+}

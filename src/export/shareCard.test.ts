@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shareCardData } from "./shareCard";
+import { SHARE_CARD_URL, shareCardData } from "./shareCard";
 import type { ScanRow } from "@/src/types/graph";
 describe("public share-card surface", () => {
   it("contains a domain and aggregate score, never a private path, title or evidence", () => {
@@ -9,5 +9,6 @@ describe("public share-card surface", () => {
     expect(data.score).toBe(100);
     expect(JSON.stringify(data)).not.toMatch(/secret|confidential|private|token/);
     expect(Object.keys(data)).not.toContain("url");
+    expect(SHARE_CARD_URL).toBe("linkscope.dev");
   });
 });

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added restrained Pro paths to the popup, change comparison, and audit report; share cards now include `linkscope.dev`.
+- Clarified that free Quiet Protection works while browsing while Pro adds scheduled watching, and made deep mode explicit in the free daily audit.
+- Increased Free Watching from one visit-only site to two and removed the obsolete extended-history entitlement.
+- Added a first-install welcome page and an optional count-only telemetry sender/receiver with no user or install identifier.
 - Made manual scans, local scan history, graphs, scores, and single-scan exports equally available on Free and Pro; retention is now a shared device-storage safety boundary rather than a paywall.
 - Limited Free users to one site audit per local calendar day; Pro now unlocks unlimited site audits, with a clear in-place upgrade prompt at the limit.
 - Locked audit-limit, bulk-export, and watched-site-limit actions now open the checkout dialog without losing the user’s current work.
@@ -47,3 +51,12 @@
 - Added plan-aware local snapshot retention controls.
 - Added actionable restricted-page and injection-failure states.
 - Added regression tests for classification, multi-hop graph normalization, and restricted URLs.
+
+## Client website workflow
+
+- Reposition onboarding around checking, monitoring, and reporting on websites you maintain.
+- Add a searchable portfolio with unread-change priority, watch coverage, and links to monitoring and reports.
+- Add printable and text client reports with resource-only evidence and private URL/title omission.
+- Preserve unread activity when Overview opens.
+- Surface monitoring after popup scans, and clarify browser-running requirements for scheduled checks.
+- Preserve lifetime Pro pricing and existing entitlements.

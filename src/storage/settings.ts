@@ -9,6 +9,8 @@ const SHORTCUT_PROMO_KEY = "shortcut-promo";
 const SHORTCUT_USED_KEY = "shortcut-used-at";
 const NEW_TAB_KEY = "newtab-widget";
 const FREE_AUDIT_DAY_KEY = "free-audit-day";
+const UPGRADE_FRICTION_KEY = "upgrade-friction";
+const POPUP_PRO_NUDGE_KEY = "popup-pro-nudge";
 
 export type AlertSensitivity = "important" | "all";
 export type DigestFrequency = "daily" | "weekly";
@@ -144,6 +146,40 @@ export async function claimFreeAuditToday(auditId: number, now = Date.now()): Pr
 
     await db.settings.put({ key: FREE_AUDIT_DAY_KEY, value: JSON.stringify({ day }) });
     if (audit) await db.audits.update(auditId, { freeAuditClaimed: true });
+    return true;
+  });
+}
+
+export type UpgradeFriction = "audit-limit" | "watch-limit";
+
+/** Remember one recent limit hit so the next popup can acknowledge real friction. */
+export async function recordUpgradeFriction(kind: UpgradeFriction, now = Date.now()): Promise<void> {
+  await db.settings.put({ key: UPGRADE_FRICTION_KEY, value: JSON.stringify({ kind, at: now }) });
+}
+
+export async function consumeUpgradeFriction(now = Date.now()): Promise<UpgradeFriction | null> {
+  return await db.transaction("rw", db.settings, async () => {
+    const row = await db.settings.get(UPGRADE_FRICTION_KEY);
+    if (!row) return null;
+    await db.settings.delete(UPGRADE_FRICTION_KEY);
+    try {
+      const value = JSON.parse(row.value) as { kind?: unknown; at?: unknown };
+      if ((value.kind === "audit-limit" || value.kind === "watch-limit") && typeof value.at === "number" && now - value.at <= 14 * 24 * 60 * 60 * 1000) return value.kind;
+    } catch {
+      // Damaged internal nudges are consumed silently.
+    }
+    return null;
+  });
+}
+
+/** Claim the 3rd, 10th, or 25th manual-scan nudge once per local profile. */
+export async function claimPopupProNudge(): Promise<boolean> {
+  return await db.transaction("rw", db.settings, db.scans, async () => {
+    const manualScans = await db.scans.filter((scan) => scan.captureMode !== "automatic" && scan.captureMode !== "scheduled").count();
+    const reached = [25, 10, 3].find((milestone) => manualScans >= milestone) ?? 0;
+    const shown = Number((await db.settings.get(POPUP_PRO_NUDGE_KEY))?.value ?? 0);
+    if (reached === 0 || reached <= shown) return false;
+    await db.settings.put({ key: POPUP_PRO_NUDGE_KEY, value: String(reached) });
     return true;
   });
 }

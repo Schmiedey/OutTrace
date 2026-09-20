@@ -7,7 +7,7 @@ import { FREE_AUDIT_LIMIT_MESSAGE } from "@/src/billing/entitlements";
 import { Button } from "@/src/components/ui/button";
 import { createAudit } from "@/src/storage/audits";
 import { useAsync } from "@/src/lib/useAsync";
-import { hasUsedFreeAuditToday } from "@/src/storage/settings";
+import { hasUsedFreeAuditToday, recordUpgradeFriction } from "@/src/storage/settings";
 import { useUpgradePrompt } from "@/src/components/UpgradePrompt";
 import { noteUsage } from "@/src/telemetry/usage";
 
@@ -25,6 +25,7 @@ export function AuditNewPage() {
 
   const openAuditUpgrade = (): void => {
     noteUsage("audit-limit-locked-clicked");
+    void recordUpgradeFriction("audit-limit");
     openUpgrade();
   };
 
@@ -90,7 +91,7 @@ export function AuditNewPage() {
             );
           })}
         </div>
-        {!billing.data?.paid ? <p className="mt-3 text-[12px] text-mute">{freeAuditLocked ? `${FREE_AUDIT_LIMIT_MESSAGE} Your allowance resets tomorrow.` : "Free includes one site audit per day. Pro unlocks unlimited audits, deeper visibility, and recurring monitoring."}</p> : null}
+        {!billing.data?.paid ? <p className="mt-3 text-[12px] text-mute">{freeAuditLocked ? `${FREE_AUDIT_LIMIT_MESSAGE} Your allowance resets tomorrow.` : "Free includes one site audit per day, including deep iframe-aware mode. Pro unlocks unlimited audits and recurring monitoring."}</p> : null}
       </fieldset>
 
       {freeAuditLocked ? (

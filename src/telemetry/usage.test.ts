@@ -10,7 +10,7 @@ beforeEach(async () => {
 });
 afterEach(async () => { await db.delete(); vi.useRealTimers(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 describe("strict opt-in aggregate usage", () => {
-  it("collects nothing before consent and sends nothing without a receiver", async () => {
+  it("collects nothing before consent and keeps counts local without a receiver", async () => {
     await recordUsage("manual-scan");
     expect((await usageStatus()).counts).toEqual({});
     await setUsageConsent(true); await recordUsage("manual-scan");
@@ -25,16 +25,20 @@ describe("strict opt-in aggregate usage", () => {
     await setUsageConsent(false); await recordUsage("manual-scan");
     expect((await usageStatus()).counts).toEqual({});
   });
-  it("never posts even when an old reporting endpoint is configured", async () => {
+  it("posts only allowlisted aggregate counts to a configured HTTPS receiver", async () => {
     vi.stubEnv("WXT_USAGE_ENDPOINT", "https://counts.example.test/aggregate");
     const request = vi.fn().mockResolvedValue({ ok: true }); vi.stubGlobal("fetch", request);
     await setUsageConsent(true); await recordUsage("watchlist-added");
-    expect(usageEndpoint()).toBeNull();
+    expect(usageEndpoint()).toBe("https://counts.example.test/aggregate");
     expect((await usageStatus()).counts).toEqual({ "consent-enabled": 1, "watchlist-added": 1 });
+    expect(await sendUsageCounts(true)).toBe(true);
+    expect(request).toHaveBeenCalledOnce();
+    const [, options] = request.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(String(options.body))).toEqual({ formatVersion: 1, counts: { "consent-enabled": 1, "watchlist-added": 1 } });
+    expect(String(options.body)).not.toMatch(/domain|url|timestamp|install/i);
     expect(await sendUsageCounts(true)).toBe(false);
-    expect(request).not.toHaveBeenCalled();
   });
-  it("ignores every endpoint override and keeps counts local", async () => {
+  it("rejects unsafe endpoints and retains counts after a failed send", async () => {
     vi.stubEnv("WXT_USAGE_ENDPOINT", "http://counts.example.test/aggregate"); expect(usageEndpoint()).toBeNull();
     vi.stubEnv("WXT_USAGE_ENDPOINT", "https://counts.example.test/aggregate?token=secret"); expect(usageEndpoint()).toBeNull();
     vi.stubEnv("WXT_USAGE_ENDPOINT", "https://counts.example.test/aggregate"); vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));

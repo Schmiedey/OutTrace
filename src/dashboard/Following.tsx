@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { identifyDomain } from "@/src/analysis/identity";
 import type { BillingStatus } from "@/src/billing/extpay";
 import { Button } from "@/src/components/ui/button";
@@ -13,6 +13,7 @@ import { requestWatchlistPermission } from "@/src/extension/watchlistPermission"
 import { FREE_WATCHED_SITE_LIMIT } from "@/src/billing/entitlements";
 import { useUpgradePrompt } from "@/src/components/UpgradePrompt";
 import { noteUsage } from "@/src/telemetry/usage";
+import { recordUpgradeFriction } from "@/src/storage/settings";
 
 type WatchedSitesResponse = {
   ok?: boolean;
@@ -40,7 +41,8 @@ function formatNextRun(timestamp: number, now: number): string {
 export function FollowingPage() {
   const watched = useAsync(loadWatchedSites, []);
   const followed = useAsync(() => listFollowedDomains(), []);
-  const [url, setUrl] = useState("");
+  const [params] = useSearchParams();
+  const [url, setUrl] = useState(params.get("url") ?? "");
   const [schedule, setSchedule] = useState<WatchedSiteSchedule>("visit");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +51,9 @@ export function FollowingPage() {
 
   const add = async (): Promise<void> => {
     if (!canAddSite) {
+      noteUsage("watch-limit-locked-clicked");
       noteUsage("upgrade-opened");
+      void recordUpgradeFriction("watch-limit");
       openUpgrade();
       return;
     }
@@ -99,7 +103,7 @@ export function FollowingPage() {
         <div>
           <h1 className="font-display text-4xl">Watched sites</h1>
           <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-mute">
-            Quiet Protection checks sites you visit. Watching tracks sites you explicitly care about. Choose visit-only checks or scheduled daily/weekly checks, even when you do not visit.
+            Keep watch on client websites after deployments, plugin updates, and tag changes. Free checks two sites when you visit. Pro adds daily or weekly checks while this browser is running.
           </p>
         </div>
         <Link to="/pro" className="text-[13px] text-ink underline">{isPro ? "Pro active" : "View Pro"}</Link>
@@ -112,13 +116,13 @@ export function FollowingPage() {
           <select value={schedule} aria-label="Check frequency" disabled={!isPro} onChange={(event) => setSchedule(event.target.value as WatchedSiteSchedule)} className="h-10 rounded-md border border-line bg-canvas px-3 text-[13px] disabled:cursor-not-allowed disabled:opacity-60">
             <option value="visit">When I visit</option><option value="daily">Daily</option><option value="weekly">Weekly</option>
           </select>
-          <Button disabled={!url.trim() || busy === "add"} onClick={() => void add()}>{busy === "add" ? "Adding & checking…" : canAddSite && !isPro ? "Add free watched site" : "Add site · Pro"}</Button>
+          <Button disabled={!url.trim() || busy !== null || watched.loading || Boolean(watched.error)} onClick={() => void add()}>{busy === "add" ? "Adding & checking…" : canAddSite ? "Watch this site" : "Unlock more sites · Pro"}</Button>
         </div>
-        <p className="mt-3 text-[12px] text-mute">Free includes one visit-only watched site. Pro removes the site limit and adds daily or weekly checks, digests, and multi-site reporting. Single-page scans and badges stay free.</p>
+        <p className="mt-3 text-[12px] text-mute">Free includes two visit-only watched sites. Pro removes the site limit and adds daily or weekly checks, digests, and multi-site reporting. Single-page scans and badges stay free.</p>
         <p className="mt-2 text-[12px] text-mute">Every change includes routine entries in the collapsed Activity inbox. Never keeps scans in local history without inbox or badge events. Only important changes can send notifications; delivery is controlled separately in Settings.</p>
       </section>
 
-      {error ? <p className="mt-4 text-[13px] text-rose">{error}</p> : null}
+      {error || watched.error ? <p role="alert" className="mt-4 text-[13px] text-rose">{error ?? watched.error}</p> : null}
       <section className="mt-8">
         {sites.length === 0 && !watched.loading ? <p className="border-y border-line py-6 text-[14px] text-mute">No watched sites yet.</p> : (
           <ul className="divide-y divide-line border-y border-line">

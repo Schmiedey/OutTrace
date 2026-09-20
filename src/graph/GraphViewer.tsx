@@ -61,10 +61,32 @@ export function GraphViewer({
 
   useEffect(() => {
     const onKey = (event: globalThis.KeyboardEvent): void => {
+      const target = event.target;
+      const editing =
+        target instanceof HTMLElement &&
+        target.closest("input, textarea, select, button, a, [contenteditable='true']") !== null;
+
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") {
         event.preventDefault();
         searchRef.current?.focus();
         searchRef.current?.select();
+      }
+      if (
+        !editing &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !event.shiftKey &&
+        (event.key === "Delete" || event.key === "Backspace")
+      ) {
+        const { selectedNode: currentSelection, hideNode: hideSelectedNode } =
+          useGraphStore.getState();
+        if (currentSelection && !isTreeGroupId(currentSelection)) {
+          event.preventDefault();
+          hideSelectedNode(currentSelection);
+          setMenu(null);
+          setTapTip(null);
+        }
       }
       if (event.key === "Escape") setMenu(null);
     };
@@ -75,7 +97,10 @@ export function GraphViewer({
   const onSearchKey = (event: KeyboardEvent<HTMLInputElement>): void => {
     if (event.key !== "Enter") return;
     const match = bestSearchMatch(graph.nodes, searchQuery);
-    if (match) selectNode(match.domain);
+    if (match) {
+      selectNode(match.domain);
+      searchRef.current?.blur();
+    }
   };
 
   const hover = hoveredNode ? identifyDomain(hoveredNode) : null;
@@ -117,6 +142,7 @@ export function GraphViewer({
             <button type="button" className="text-mute hover:text-ink" onClick={() => exportGraphPng(useGraphStore.getState().cy, graph.originDomain)}>PNG</button>
             <button type="button" className="text-mute hover:text-ink" onClick={() => window.print()}>PDF</button>
           </>
+          {scan?.id !== undefined ? <Link to={`/reports/${scan.id}`} className="font-medium underline">Client report</Link> : null}
           {scan ? <ShareScan scan={scan} snapshot={graph} /> : null}
           <Link to={backTo.replace(/^#/, "")} className="text-mute hover:text-ink">
             Dashboard
@@ -138,6 +164,7 @@ export function GraphViewer({
               void isFollowedDomain(domain).then((followed) => setMenu({ domain, x, y, followed }));
             }}
             onNodeTap={(id, x, y) => {
+              searchRef.current?.blur();
               setMenu(null);
               setTapTip({ id, x, y });
             }}

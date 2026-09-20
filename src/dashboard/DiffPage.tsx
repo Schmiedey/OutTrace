@@ -6,10 +6,12 @@ import { useAsync } from "@/src/lib/useAsync";
 import { getScan, getScanGraph } from "@/src/storage/scans";
 import { CATEGORY_LABELS, type GraphNodeRecord } from "@/src/types/graph";
 import { isTrackerCategory } from "@/src/analysis/categorizer";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { classifyChange } from "@/src/analysis/changeImportance";
 import { markScanActivityRead } from "@/src/storage/alerts";
 import { scoreSnapshot } from "@/src/analysis/score";
+import { SiteWatching } from "@/src/components/SiteWatching";
+import { noteUsage } from "@/src/telemetry/usage";
 
 export function DiffPage() {
   const params = useParams();
@@ -20,7 +22,13 @@ export function DiffPage() {
   const fromGraph = useAsync(() => getScanGraph(fromId), [fromId]);
   const toGraph = useAsync(() => getScanGraph(toId), [toId]);
   const now = Date.now();
+  const ctaRecorded = useRef(false);
   useEffect(() => { if (toScan.data && toGraph.data && fromScan.data && fromGraph.data) void markScanActivityRead(toId).catch(() => {}); }, [toId, toScan.data?.id, fromScan.data?.id, toGraph.data?.scanId, fromGraph.data?.scanId]);
+  useEffect(() => {
+    if (!toScan.data || ctaRecorded.current) return;
+    ctaRecorded.current = true;
+    noteUsage("diff-watch-cta-shown");
+  }, [toScan.data?.id]);
 
   if (![fromId, toId].every(Number.isFinite)) {
     return <p className="px-10 py-10 text-mute">Invalid comparison.</p>;
@@ -51,6 +59,7 @@ export function DiffPage() {
         {toScan.data.domain}
       </Link>
       <h1 className="font-display mt-2 text-4xl">What changed</h1>
+      <Link to={`/reports/${toId}/compare/${fromId}`} className="mt-4 inline-block rounded-md bg-ink px-4 py-2 text-[13px] text-canvas">Prepare client report</Link>
       <p className="mt-2 max-w-xl text-[14px] text-mute">
         {formatRelativeTime(fromScan.data.timestamp, now)} → {formatRelativeTime(toScan.data.timestamp, now)}. First-party
         assets are included; listed trackers are marked.
@@ -93,6 +102,12 @@ export function DiffPage() {
             <Badge>+{formatCount(diff.persistent.length - 60)} more</Badge>
           ) : null}
         </div>
+      </section>
+
+      <section className="mt-12 max-w-2xl border-t border-line pt-8">
+        <h2 className="font-display text-2xl">Catch this automatically next time</h2>
+        <p className="mt-2 text-[13px] text-mute">Watch {toScan.data.domain} when you visit, or use Pro to check it daily or weekly while your browser is running.</p>
+        <SiteWatching domain={toScan.data.domain} url={toScan.data.url} className="mt-4" />
       </section>
     </div>
   );

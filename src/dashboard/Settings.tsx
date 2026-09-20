@@ -45,10 +45,22 @@ export function SettingsPage() {
     setUsageBusy(true);
     try {
       const enabled = !usage.data?.enabled;
+      if (enabled && usage.data?.endpoint) {
+        const origin = `${new URL(usage.data.endpoint).origin}/*`;
+        const granted = await browser.permissions.request({ origins: [origin] });
+        if (!granted) {
+          setUsageMessage("Aggregate counts remain off because receiver access was not granted.");
+          return;
+        }
+      }
       const response = await browser.runtime.sendMessage({ type: "SET_USAGE_CONSENT", enabled }) as { ok?: boolean; error?: string };
       if (!response?.ok) throw new Error(response?.error ?? "Could not update usage consent.");
+      if (!enabled && usage.data?.endpoint) {
+        const origin = `${new URL(usage.data.endpoint).origin}/*`;
+        await browser.permissions.remove({ origins: [origin] }).catch(() => false);
+      }
       usage.reload();
-      setUsageMessage(enabled ? "Local usage counts enabled. Nothing is sent automatically." : "Usage counts disabled and local counters erased.");
+      setUsageMessage(enabled ? (usage.data?.endpoint ? "Anonymous aggregate counts enabled. Pending totals are sent at most once a day." : "Local usage counts enabled. This build has no receiver, so nothing is sent automatically.") : "Usage counts disabled and local counters erased.");
     } catch (error) { setUsageMessage(error instanceof Error ? error.message : "Could not update consent."); }
     finally { setUsageBusy(false); }
   };
@@ -208,10 +220,10 @@ export function SettingsPage() {
         {billing.data?.error ? <p role="alert" className="mt-2 text-[12px] text-rose">{billing.data.error}</p> : null}
       </section>
       <section className="mb-8" aria-label="Optional usage counts">
-        <h2 className="text-[15px] font-medium">Local usage counts</h2>
-        <p className="mt-2 text-[13px] text-mute">Off by default. Record feature counts on this device only: opens, first/second scans, a return in week two after consent, watchlist adds, share exports, digests, and upgrade opens. No URLs, domains, page data, scores, user IDs, or exact timestamps enter the exported counts. Nothing from before consent is reconstructed. Turning this off erases local counters.</p>
-        <p className="mt-2 text-[12px] text-mute">Nothing is sent automatically. You can export and review the counts, then choose whether to share the file yourself.</p>
-        <div className="mt-3 flex flex-wrap gap-2"><Button variant="ghost" disabled={usageBusy || usage.loading} onClick={() => void toggleUsage()}>{usageBusy ? "Updating…" : usage.data?.enabled ? "Usage counts on · turn off" : "Enable local usage counts"}</Button><Button variant="ghost" disabled={!usage.data?.enabled || usageBusy} onClick={() => { void usageStatus().then((value) => { downloadJson("linkscope-usage-counts.json", { formatVersion: 1, counts: value.counts }); usage.reload(); }).catch(() => setUsageMessage("Could not export usage counts.")); }}>Export counts for review</Button></div>
+        <h2 className="text-[15px] font-medium">Anonymous aggregate usage counts</h2>
+        <p className="mt-2 text-[13px] text-mute">Off by default. Count a fixed list of product actions: opens, scans, watchlist adds, exports, limit hits, upgrade opens, and checkout milestones. Counts never include URLs, domains, page data, scores, user or install IDs, or client timestamps. LinkScope does not store IP addresses. Nothing from before consent is reconstructed.</p>
+        <p className="mt-2 text-[12px] text-mute">{usage.data?.endpoint ? "When enabled, pending totals are sent at most once a day to LinkScope’s count-only receiver. Failed sends stay queued locally. You can export the same totals for review at any time." : "This build has no aggregate receiver configured. Counts remain on this device and can only be exported for review."} Turning this off erases local totals and the unsent queue.</p>
+        <div className="mt-3 flex flex-wrap gap-2"><Button variant="ghost" disabled={usageBusy || usage.loading} onClick={() => void toggleUsage()}>{usageBusy ? "Updating…" : usage.data?.enabled ? "Usage counts on · turn off" : usage.data?.endpoint ? "Share anonymous counts" : "Enable local usage counts"}</Button><Button variant="ghost" disabled={!usage.data?.enabled || usageBusy} onClick={() => { void usageStatus().then((value) => { downloadJson("linkscope-usage-counts.json", { formatVersion: 1, counts: value.counts }); usage.reload(); }).catch(() => setUsageMessage("Could not export usage counts.")); }}>Export counts for review</Button></div>
         {usageMessage ? <p role="status" className="mt-3 text-[12px] text-mute">{usageMessage}</p> : null}
       </section>
       <section className="mb-8" aria-label="Local backups">

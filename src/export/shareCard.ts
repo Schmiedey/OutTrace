@@ -1,6 +1,8 @@
 import { scoreSnapshot, scoreSummary, scoreVerdict } from "@/src/analysis/score";
 import type { ScanGraphSnapshot, ScanRow } from "@/src/types/graph";
 
+export const SHARE_CARD_URL = "linkscope.dev";
+
 export function shareCardData(scan: ScanRow, snapshot: ScanGraphSnapshot) {
   const score = scoreSnapshot(snapshot);
   // Explicit public surface: never include page paths, titles, queries, or evidence.
@@ -39,5 +41,6 @@ export async function createShareCard(scan: ScanRow, snapshot: ScanGraphSnapshot
   // A simple linked-node brand mark; all rendering is local and deterministic.
   ctx.strokeStyle = "#171717"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(1080, 525); ctx.lineTo(1120, 565); ctx.stroke();
   for (const [x, y] of [[1080, 525], [1120, 565]]) { ctx.beginPath(); ctx.arc(x!, y!, 12, 0, Math.PI * 2); ctx.stroke(); }
+  ctx.fillStyle = "#737373"; ctx.font = "600 18px 'IBM Plex Sans', sans-serif"; ctx.textAlign = "right"; ctx.fillText(SHARE_CARD_URL, 1140, 610); ctx.textAlign = "left";
   return new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("PNG export failed.")), "image/png"));
 }

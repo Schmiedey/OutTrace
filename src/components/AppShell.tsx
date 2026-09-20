@@ -1,5 +1,5 @@
 import { ArrowUpRight, ClipboardCheck, Crown, Globe2, History, LayoutDashboard, Network, Settings, Star, Waypoints } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { billingStatus } from "@/src/billing/client";
 import type { BillingStatus } from "@/src/billing/extpay";
@@ -7,13 +7,13 @@ import { UpgradeDialog } from "@/src/components/UpgradeDialog";
 import { UpgradePromptContext } from "@/src/components/UpgradePrompt";
 import { cn } from "@/src/lib/utils";
 import { useAsync } from "@/src/lib/useAsync";
-import { markAlertsRead, unreadAlertCount } from "@/src/storage/alerts";
+import { unreadAlertCount } from "@/src/storage/alerts";
 
 const NAV = [
   { to: "/", label: "Overview", icon: LayoutDashboard },
   { to: "/scans", label: "Scans", icon: History },
   { to: "/audits", label: "Audits", icon: ClipboardCheck },
-  { to: "/sites", label: "Sites", icon: Globe2 },
+  { to: "/sites", label: "Portfolio", icon: Globe2 },
   { to: "/domains", label: "Domains", icon: Waypoints },
   { to: "/following", label: "Watching", icon: Star },
   { to: "/global", label: "Global graph", icon: Network },
@@ -33,12 +33,6 @@ export function AppShell() {
     if (next.paid) setUpgradeOpen(false);
   }, []);
 
-  useEffect(() => {
-    if (location.pathname !== "/") return;
-    void markAlertsRead().then(() => unread.reload());
-    // Reload is stable enough for a pathname-only trigger.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
 
   return (
     <div className="flex min-h-screen bg-canvas">

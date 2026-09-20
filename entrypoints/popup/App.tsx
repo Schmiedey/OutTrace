@@ -34,7 +34,7 @@ import {
   unusualForSite,
   type SiteMemory,
 } from "@/src/storage/siteMemory";
-import { listIgnoredDomains, recordShortcutPromoImpression, shouldShowShortcutPromo } from "@/src/storage/settings";
+import { claimPopupProNudge, consumeUpgradeFriction, listIgnoredDomains, recordShortcutPromoImpression, shouldShowShortcutPromo, type UpgradeFriction } from "@/src/storage/settings";
 import type { DomainRow } from "@/src/types/graph";
 import { noteUsage } from "@/src/telemetry/usage";
 import { getOverviewStats } from "@/src/storage/scans";
@@ -75,12 +75,14 @@ export function PopupApp() {
   const [selected, setSelected] = useState<string | null>(null);
   const [selectedRow, setSelectedRow] = useState<DomainRow>();
   const [followed, setFollowed] = useState(false);
+  const [upgradeHint, setUpgradeHint] = useState<UpgradeFriction | "milestone" | null>(null);
   const scanProgress = useScanProgress();
   const activity = useAsync(() => listRecentAlerts(100, true), []);
   const monthlyStats = useAsync(() => getOverviewStats(), []);
   const billing = useAsync(() => billingStatus(true), []);
   const shortcutPromo = useAsync(shouldShowShortcutPromo, []);
   const shortcutImpressionRecorded = useRef(false);
+  const upgradeHintLoaded = useRef(false);
 
   useEffect(() => {
     if (!shortcutPromo.data || shortcutImpressionRecorded.current) return;
@@ -95,6 +97,18 @@ export function PopupApp() {
     // wrapper on each render, while the phase is the actual trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scanProgress.progress?.phase]);
+  useEffect(() => {
+    if (billing.data?.paid !== false || upgradeHintLoaded.current) return;
+    upgradeHintLoaded.current = true;
+    void (async () => {
+      const friction = await consumeUpgradeFriction();
+      const hint = friction ?? ((await claimPopupProNudge()) ? "milestone" : null);
+      if (hint) {
+        setUpgradeHint(hint);
+        noteUsage("popup-pro-nudge-shown");
+      }
+    })().catch(() => undefined);
+  }, [billing.data?.paid]);
   const elsewhere =
     activity.data?.filter(
       (alert) => !alert.read && alert.siteDomain !== host,
@@ -241,6 +255,10 @@ export function PopupApp() {
       );
       scanProgress.complete();
       setGlance(await getSiteGlance(domain));
+      if (billing.data?.paid === false && !upgradeHint && await claimPopupProNudge()) {
+        setUpgradeHint("milestone");
+        noteUsage("popup-pro-nudge-shown");
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Could not check this page.",
@@ -450,6 +468,23 @@ export function PopupApp() {
           >
             ↻ {glance ? "Check again" : "Check this page"}
           </Button>
+          {upgradeHint && billing.data?.paid === false ? (
+            <p className="px-1 py-1 text-center text-[11px] leading-relaxed text-mute">
+              {upgradeHint === "audit-limit"
+                ? "That’s today’s free audit. Upgrade removes the daily cap."
+                : upgradeHint === "watch-limit"
+                  ? "Your two free watched sites are in use. Pro removes the limit."
+                  : "LinkScope can watch this for you on a schedule."}{" "}
+              <button
+                type="button"
+                className="text-ink underline underline-offset-2"
+                onClick={() => { noteUsage("upgrade-opened"); void openDashboard("/pro"); }}
+              >
+                View Pro
+              </button>
+            </p>
+          ) : null}
+          {glance ? <section className="rounded-md border border-line bg-panel p-3"><p className="text-[12px] font-medium">Keep watch after this check</p><p className="mt-1 text-[11px] text-mute">Compare future captures after a site update. Two visit-only watched sites are free.</p><button type="button" className="mt-2 text-[12px] underline" onClick={() => void openDashboard(`/following?url=${encodeURIComponent(glance.latest.url)}`)}>Set up monitoring</button></section> : null}
           <QuietProtection compact suggest={Boolean(glance)} />
           <details className="mt-2 text-[12px] text-mute">
             <summary className="cursor-pointer">More options</summary>
@@ -469,6 +504,9 @@ export function PopupApp() {
               >
                 Explore graph
               </Button>
+            ) : null}
+            {glance?.latest.id !== undefined ? (
+              <Button variant="ghost" className="w-full" onClick={() => void openDashboard(`/reports/${glance.latest.id}`)}>Client report</Button>
             ) : null}
             <Button
               variant="ghost"

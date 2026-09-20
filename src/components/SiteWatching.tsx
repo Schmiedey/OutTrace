@@ -9,6 +9,7 @@ import { requestWatchlistPermission } from "@/src/extension/watchlistPermission"
 import { FREE_WATCHED_SITE_LIMIT } from "@/src/billing/entitlements";
 import { useUpgradePrompt } from "@/src/components/UpgradePrompt";
 import { noteUsage } from "@/src/telemetry/usage";
+import { recordUpgradeFriction } from "@/src/storage/settings";
 
 export function SiteWatching({
   domain,
@@ -62,12 +63,12 @@ export function SiteWatching({
       )}
       aria-label="Site Watching"
     >
-      <h2 className="text-[15px] font-medium">Watching</h2>
+      <h2 className="text-[15px] font-medium">Keep watch after this check</h2>
       <p className="mt-2 text-[13px] text-mute">
         {state.data?.site?.enabled
           ? `Watching · ${state.data.site.schedule === "visit" ? "when you visit" : state.data.site.schedule}`
-          : "Not watching"}
-        . Quiet Protection is separate from explicit Watching.
+          : "Keep this capture as your starting point"}
+        . Compare future captures to spot new trackers and outside services.
       </p>
       {state.data?.site?.enabled ? (
         <Link
@@ -80,7 +81,7 @@ export function SiteWatching({
         <Button
           variant="ghost"
           className="mt-3"
-          disabled={busy}
+          disabled={busy || state.loading || Boolean(state.error)}
           onClick={() => setExplain(true)}
         >
           Watch this site
@@ -89,7 +90,7 @@ export function SiteWatching({
         <Button
           variant="ghost"
           className="mt-3"
-          onClick={() => { noteUsage("upgrade-opened"); openUpgrade(); }}
+          onClick={() => { noteUsage("watch-limit-locked-clicked"); noteUsage("upgrade-opened"); void recordUpgradeFriction("watch-limit"); openUpgrade(); }}
         >
           Watch this site · Pro
         </Button>
@@ -117,9 +118,9 @@ export function SiteWatching({
           </div>
         </div>
       ) : null}
-      {error ? (
+      {error || state.error ? (
         <p role="alert" className="mt-2 text-[12px] text-rose">
-          {error}
+          {error ?? state.error}
         </p>
       ) : null}
     </section>
