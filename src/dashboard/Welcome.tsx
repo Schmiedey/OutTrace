@@ -162,7 +162,9 @@ function WelcomeDashboardCta() {
     if (!node) return;
 
     const observer = new IntersectionObserver(
-      ([entry]) => {
+      (entries) => {
+        const entry = entries[0];
+        if (!entry) return;
         setVisible(entry.isIntersecting);
       },
       { rootMargin: "0px 0px -72px 0px", threshold: 0 },
