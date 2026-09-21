@@ -2,7 +2,7 @@
   "name": "outtrace",
   "description": "Local-first Chrome extension for people who maintain websites: inspect third-party connections, watch for changes, and prepare client reports.",
   "private": true,
-  "version": "0.5.3",
+  "version": "0.5.4",
   "type": "module",
   "scripts": {
     "dev": "wxt",

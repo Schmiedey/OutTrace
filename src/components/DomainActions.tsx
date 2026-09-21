@@ -25,7 +25,7 @@ export function DomainActions({
     const result = await blockDomain(domain);
     setBlockNote(
       result === "blocked"
-        ? "Blocked in this browser for this session."
+        ? "Blocked in this browser for that domain only. Chrome asks for host access before the block can take effect."
         : `Copied ${uBlockFilter(domain)} — paste it into uBlock if the block prompt was declined.`,
     );
     if (result === "blocked") setBlocked(true);

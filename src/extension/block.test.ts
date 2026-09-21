@@ -1,8 +1,21 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { blockDomain, uBlockFilter } from "@/src/extension/block";
+import "fake-indexeddb/auto";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { db } from "@/src/storage/database";
+import {
+  blockDomain,
+  restorePersistedBlockRules,
+  uBlockFilter,
+  unblockDomain,
+} from "./block";
 
 describe("domain blocking", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    vi.unstubAllGlobals();
+    await db.open();
+  });
+
+  afterEach(async () => {
+    await db.delete();
     vi.unstubAllGlobals();
   });
 
@@ -10,7 +23,7 @@ describe("domain blocking", () => {
     const updateDynamicRules = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("browser", {
       permissions: { request: vi.fn().mockResolvedValue(true) },
-      declarativeNetRequest: { updateDynamicRules },
+      declarativeNetRequest: { updateDynamicRules, getDynamicRules: vi.fn().mockResolvedValue([]) },
     });
 
     await expect(blockDomain("TRACKER.Example")).resolves.toBe("blocked");
@@ -24,6 +37,63 @@ describe("domain blocking", () => {
         ],
       }),
     );
+  });
+
+  it("re-applies remembered rules when host access is still granted", async () => {
+    const updateDynamicRules = vi.fn().mockResolvedValue(undefined);
+    await db.settings.put({
+      key: "blocked-domains",
+      value: JSON.stringify(["tracker.example"]),
+    });
+    vi.stubGlobal("browser", {
+      permissions: { contains: vi.fn().mockResolvedValue(true) },
+      declarativeNetRequest: {
+        updateDynamicRules,
+        getDynamicRules: vi.fn().mockResolvedValue([]),
+      },
+    });
+
+    await restorePersistedBlockRules();
+    expect(updateDynamicRules).toHaveBeenCalledWith(
+      expect.objectContaining({
+        addRules: [
+          expect.objectContaining({
+            condition: expect.objectContaining({ requestDomains: ["tracker.example"] }),
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("does not re-apply a remembered block without host access", async () => {
+    const updateDynamicRules = vi.fn().mockResolvedValue(undefined);
+    await db.settings.put({
+      key: "blocked-domains",
+      value: JSON.stringify(["tracker.example"]),
+    });
+    vi.stubGlobal("browser", {
+      permissions: { contains: vi.fn().mockResolvedValue(false) },
+      declarativeNetRequest: {
+        updateDynamicRules,
+        getDynamicRules: vi.fn().mockResolvedValue([]),
+      },
+    });
+
+    await restorePersistedBlockRules();
+    expect(updateDynamicRules).not.toHaveBeenCalled();
+  });
+
+  it("forgets a domain when unblocked", async () => {
+    const updateDynamicRules = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("browser", {
+      permissions: { request: vi.fn().mockResolvedValue(true) },
+      declarativeNetRequest: { updateDynamicRules, getDynamicRules: vi.fn().mockResolvedValue([]) },
+    });
+    await blockDomain("tracker.example");
+    await unblockDomain("tracker.example");
+    expect(updateDynamicRules).toHaveBeenLastCalledWith({
+      removeRuleIds: [expect.any(Number)],
+    });
   });
 
   it("keeps the portable uBlock rule format", () => {

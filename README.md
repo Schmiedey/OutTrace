@@ -81,24 +81,23 @@ Restoring a complete backup pauses automatic history cleanup until you review th
 
 Local data normally persists through updates when the extension ID and database name remain unchanged. Uninstalling, profile/device loss, or storage failures can remove it. **Protect local storage** asks the browser for persistence protection, but is not a replacement for external backups.
 
-The payment-success content script runs only on `https://extensionpay.com/*`; it lets successful payments and purchase restoration refresh the license cache, then returns the checkout tab to OutTrace's Pro page with a short confirmation state. It does not scan browsing pages. The optional new-tab widget is off by default; when enabled it reads only local summaries and can be turned off to return to the browser's normal new-tab page.
+The payment-success content script runs only on `https://extensionpay.com/*`; it lets successful payments and purchase restoration refresh the license cache, then returns the checkout tab to OutTrace's Pro page with a short confirmation state. It does not scan browsing pages. Chrome may warn that OutTrace can read and change data on extensionpay.com for that checkout return. OutTrace does not replace the browser's new-tab page.
 
 ## Permissions
 
 - `activeTab` + `scripting` — scan the tab you clicked
-- `tabs` — open the graph / dashboard and update the badge from saved scans
 - `alarms` — schedule the opt-in weekly digest and due checks for sites you explicitly watch
 - `storage` — retain ExtensionPay's local license token and cached Pro purchase status
 - `webRequest` — while a scan/watch is running, record initiator/document URLs for that tab
-- `notifications` — optional local alerts for watched-site changes or tracked domains
-- `declarativeNetRequest` — only if you click **Block this domain**; the resulting dynamic rule persists across browser restarts
+- `declarativeNetRequestWithHostAccess` — only if you click **Block this domain**; Chrome asks for that domain's host access first, so this does not show an install-time blocking warning
+- Optional `notifications` — requested only when you enable change alerts in Settings
 - Optional host access — a watched site asks only for its exact hostname at the moment you add it, alongside a clear explanation. If declined, it remains on the watchlist for manual checks only. Visit alerts run only after a granted watched-origin navigation. Quiet Protection and deep iframe scans retain their separate explicit permission prompts. Removing a watched site revokes its matching hostname access. If a count receiver is configured, enabling anonymous usage counts asks separately for access to that exact HTTPS receiver origin.
 - Optional browser capabilities — Right-click scan and visit navigation observation are requested only when you enable those controls; neither grants website access. The weekly digest is off until selected in Settings and stays quiet when no new trackers appear.
-- `chrome_url_overrides.newtab` — the optional OutTrace new-tab summary is off by default and reads local data only. Disable it in Settings to return to the browser's normal new-tab page.
+- `https://extensionpay.com/*` — content script for Pro checkout and restore only; not used to scan websites
 
-No required host permissions. Pages are not injected at `document_start`.
+No required host permissions beyond ExtensionPay checkout. Pages are not injected at `document_start` except on extensionpay.com after you open checkout.
 
-Permission audit: every declared permission above has a matching runtime feature. OutTrace does not request cookies, browsing history, identity, clipboard, or required host access.
+Permission audit: every declared permission above has a matching runtime feature. OutTrace does not request cookies, browsing history, identity, clipboard, the `tabs` permission, or a new-tab override.
 
 ## Links
 

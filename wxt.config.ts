@@ -16,20 +16,15 @@ export default defineConfig({
     permissions: [
       "activeTab",
       "scripting",
-      "tabs",
       "alarms",
       "storage",
-      "notifications",
       "webRequest",
-      "declarativeNetRequest",
+      "declarativeNetRequestWithHostAccess",
     ],
     // These capabilities are requested only from an explicit OutTrace control.
     // They never grant access to a site by themselves.
-    optional_permissions: ["contextMenus", "webNavigation"],
+    optional_permissions: ["contextMenus", "webNavigation", "notifications"],
     optional_host_permissions: ["*://*/*"],
-    chrome_url_overrides: {
-      newtab: "newtab.html",
-    },
     commands: {
       "scan-active-tab": {
         suggested_key: {

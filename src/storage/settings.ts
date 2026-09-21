@@ -98,7 +98,7 @@ export async function isDomainIgnored(domain: string): Promise<boolean> {
   return (await listIgnoredDomains()).includes(domain.trim().toLowerCase());
 }
 
-/** The browser's normal new-tab page remains the default until opted in. */
+/** Retained for backup compatibility. OutTrace no longer overrides the new-tab page. */
 export async function newTabEnabled(): Promise<boolean> {
   return (await db.settings.get(NEW_TAB_KEY))?.value === "true";
 }

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.4 — 2026-09-20
+
+- Removed the New Tab page override so Chrome no longer warns that OutTrace replaces the page you see when opening a new tab.
+- Dropped the install-time `tabs` permission; current-tab scans use `activeTab`, and watched or blocked sites still ask for host access only when needed.
+- Moved notifications to an optional permission requested only when change alerts are turned on.
+- Switched domain blocking to `declarativeNetRequestWithHostAccess` so Chrome does not show “Block content on any page” at install.
+
 ## 0.5.3 — 2026-09-20
 
 - Added Product Hunt badges to the README, Welcome page, Settings, store listing copy, and promo images.
@@ -40,7 +47,7 @@
 - Made the popup’s monthly tracker/site summary use saved local scan data only; no sample or placeholder counts.
 - Scheduled the off-by-default weekly digest with an alarm and made its copy informational.
 - Kept denied watched sites manual-only and revoke their hostname access when removed.
-- Added an off-by-default new-tab widget with local last-scan, watched-alert, and dashboard summaries, plus a Settings toggle to return to the browser's normal new-tab page.
+- Added an off-by-default new-tab widget with local last-scan, watched-alert, and dashboard summaries. Removed in 0.5.4 because the override still appeared as an install-time warning.
 
 ## 0.4.0 — Prepared for store submission
 

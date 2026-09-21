@@ -8,6 +8,7 @@ import {
   notificationsEnabled,
   notificationMode,
 } from "@/src/storage/settings";
+import { notificationsPermissionGranted } from "@/src/extension/optionalNotifications";
 import type { AlertRow, ScanGraphSnapshot, ScanRow } from "@/src/types/graph";
 import { noteUsage } from "@/src/telemetry/usage";
 
@@ -65,6 +66,7 @@ export async function maybeNotifyWeeklyDigest(now = Date.now()): Promise<void> {
 }
 async function sendWeeklyDigest(now: number): Promise<void> {
   if (typeof browser === "undefined" || !browser.notifications?.create) return;
+  if (!(await notificationsPermissionGranted())) return;
   if (!(await notificationsEnabled())) return;
   const mode = await notificationMode();
   if (mode !== "weekly" && mode !== "important-weekly") return;
@@ -184,6 +186,7 @@ export async function recordScanAlert(
 
 async function notifyScanAlert(alert: AlertRow): Promise<void> {
   if (typeof browser === "undefined" || !browser.notifications?.create) return;
+  if (!(await notificationsPermissionGranted())) return;
   if (!(await notificationsEnabled())) return;
   const mode = await notificationMode();
   if (mode !== "important" && mode !== "important-weekly") return;

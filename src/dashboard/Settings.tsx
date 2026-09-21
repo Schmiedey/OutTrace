@@ -18,7 +18,11 @@ import { blockDomain } from "@/src/extension/block";
 import { usageStatus } from "@/src/telemetry/usage";
 import { ProductHuntBadge } from "@/src/components/ProductHuntBadge";
 import { QuietProtection } from "@/src/components/QuietProtection";
-import { newTabEnabled, notificationMode, setNewTabEnabled, setNotificationMode, type NotificationMode } from "@/src/storage/settings";
+import { notificationMode, setNotificationMode, type NotificationMode } from "@/src/storage/settings";
+import {
+  releaseNotificationsPermission,
+  requestNotificationsPermission,
+} from "@/src/extension/optionalNotifications";
 import { useUpgradePrompt } from "@/src/components/UpgradePrompt";
 import { noteUsage } from "@/src/telemetry/usage";
 import { SUPPORT_EMAIL } from "@/src/support";
@@ -69,10 +73,9 @@ export function SettingsPage() {
   const delivery = useAsync(notificationMode, []);
   const ignored = useAsync(() => listIgnoredDomains(), []);
   const billing = useAsync(() => billingStatus(true), []);
-  const newTab = useAsync(newTabEnabled, []);
   const [billingBusy, setBillingBusy] = useState<"checkout" | "restore" | "manage" | "refresh" | null>(null);
   const [billingMessage, setBillingMessage] = useState<string | null>(null);
-  const [newTabMessage, setNewTabMessage] = useState<string | null>(null);
+  const [deliveryMessage, setDeliveryMessage] = useState<string | null>(null);
 
   const clear = async (): Promise<void> => {
     const confirmed = window.confirm("Delete every saved scan, domain, and graph from this browser?");
@@ -101,6 +104,8 @@ export function SettingsPage() {
       const confirmed = window.confirm(`Replace this browser's scans, audits, watched sites, alerts, and preferences with this backup (${backup.tables.scans.length} scans, ${backup.tables.audits.length} audits)? Download a backup of your current data first. Close other OutTrace reports and wait for running scans to finish. Automatic protection and restored watching will be off. Existing browser blocks and payment access remain unchanged.`);
       if (!confirmed) return;
       await restoreCompleteBackup(backup);
+      const wantsNotifications = backup.tables.settings.some((row) => row.key === "notification-mode" && row.value !== "none");
+      if (wantsNotifications) await requestNotificationsPermission();
       delivery.reload(); ignored.reload(); pendingBlocks.reload(); cleanup.reload(); storage.reload();
       setBackupMessage("Backup restored. Watching and automatic protection are off. History cleanup is paused so you can review restored scans. Re-enable blocks individually below; refresh other open reports.");
     } catch (error) { setBackupError(error instanceof Error ? error.message : "Restore failed. No partial restore was committed."); }
@@ -151,14 +156,24 @@ export function SettingsPage() {
     }
   };
 
-  const toggleNewTab = async (): Promise<void> => {
+  const changeNotificationMode = async (value: NotificationMode): Promise<void> => {
+    setDeliveryMessage(null);
     try {
-      const enabled = !(newTab.data ?? false);
-      await setNewTabEnabled(enabled);
-      newTab.reload();
-      setNewTabMessage(enabled ? "New-tab widget enabled. Chrome may ask you to confirm the override." : "New-tab widget off. Your normal new-tab page will be used.");
+      if (value === "none") {
+        await setNotificationMode(value);
+        await releaseNotificationsPermission();
+        delivery.reload();
+        return;
+      }
+      const granted = await requestNotificationsPermission();
+      if (!granted) {
+        setDeliveryMessage("Chrome did not allow notifications. Notable changes still stay in the local inbox.");
+        return;
+      }
+      await setNotificationMode(value);
+      delivery.reload();
     } catch {
-      setNewTabMessage("Could not update the new-tab preference.");
+      setDeliveryMessage("Could not save the notification preference.");
     }
   };
 
@@ -194,7 +209,7 @@ export function SettingsPage() {
       <section className="mb-8">
         <h2 className="text-[15px] font-medium">Privacy</h2>
         <p className="mt-2 text-[14px] leading-relaxed text-mute">
-          Manual checks use temporary current-tab access. Optional Quiet Protection quietly re-checks visited sites after a 6-second dwell, at most twice per site per day. It is off by default and requires optional site access.
+          Manual checks use temporary current-tab access. OutTrace does not replace your new-tab page. Optional Quiet Protection quietly re-checks visited sites after a 6-second dwell, at most twice per site per day. It is off by default and requires optional site access.
           Sites you explicitly add to Watching can be revisited daily or weekly from this browser. OutTrace itself has no account and never sends scan content anywhere; ExtensionPay and Stripe handle only the payment email/card details and Pro verification. Manual scans and local history use the same device-safety boundary on every plan. No cloud scan account or sync is used.
         </p>
         <QuietProtection />
@@ -206,16 +221,10 @@ export function SettingsPage() {
           <Button size="sm" variant="ghost" className="mt-2" disabled={contextMenuBusy} onClick={() => { setContextMenuBusy(true); setContextMenuMessage(null); void browser.permissions.request({ permissions: ["contextMenus"] }).then((granted) => setContextMenuMessage(granted ? "Right-click scanning enabled." : "Right-click scanning was not enabled.")).catch(() => setContextMenuMessage("Could not enable right-click scanning.")).finally(() => setContextMenuBusy(false)); }}>{contextMenuBusy ? "Enabling…" : "Enable right-click scan"}</Button>
           {contextMenuMessage ? <p role="status" className="mt-2 text-[11px] text-mute">{contextMenuMessage}</p> : null}
         </div>
-        <div className="mt-4 rounded-md border border-line bg-panel p-3">
-          <p className="text-[13px] text-ink">New-tab widget</p>
-          <p className="mt-1 text-[12px] text-mute">Off by default. When enabled, a lightweight OutTrace page shows your latest local scan, watched-site alert count, and a dashboard link. Turn it off any time to return to your normal new-tab page.</p>
-          <Button size="sm" variant="ghost" className="mt-2" disabled={newTab.loading} onClick={() => void toggleNewTab()}>{newTab.data ? "New-tab widget on · turn off" : "Show OutTrace on new tab"}</Button>
-          {newTabMessage ? <p role="status" className="mt-2 text-[11px] text-mute">{newTabMessage}</p> : null}
-        </div>
       </section>
       <section className="mb-8" aria-label="Pro access">
         <h2 className="text-[15px] font-medium">Pro access</h2>
-        <p className="mt-2 text-[13px] leading-relaxed text-mute">OutTrace itself has no account and never receives your scan history. A one-time $14.99 payment is processed by ExtensionPay and Stripe, including the email and card details needed for your receipt. Questions or refunds: <a className="text-ink underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</p>
+        <p className="mt-2 text-[13px] leading-relaxed text-mute">OutTrace itself has no account and never receives your scan history. A one-time $14.99 payment is processed by ExtensionPay and Stripe, including the email and card details needed for your receipt. Chrome may warn that OutTrace can read and change data on extensionpay.com; that site is only used for checkout, restore, and returning you to this extension. Questions or refunds: <a className="text-ink underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {!billing.data?.paid ? <Button className="whitespace-nowrap" disabled={billingBusy !== null || billing.data?.configured === false} onClick={() => void billingAction("checkout")}>{billingBusy === "checkout" ? "Opening checkout…" : "Upgrade to Pro"}</Button> : <Badge tone="lime" className="px-2 py-1 font-medium" role="status">Pro active</Badge>}
           {billing.data?.paid ? (
@@ -255,15 +264,16 @@ export function SettingsPage() {
       <section className="mb-8">
         <h2 className="text-[15px] font-medium">Change alerts</h2>
         <p className="mt-2 mb-4 text-[14px] leading-relaxed text-mute">
-          Notifications are off by default. Important watched-site or followed-domain changes can notify after a five-minute coalescing window, at most once per site per day. Notable activity stays in the local inbox. Recurring notifications retain Pro entitlements.
+          Notifications are off by default. Chrome only asks to display notifications when you turn this on. Important watched-site or followed-domain changes can notify after a five-minute coalescing window, at most once per site per day. Notable activity stays in the local inbox. Recurring notifications retain Pro entitlements.
         </p>
         <div className="flex flex-wrap gap-2">
           <label className="text-[13px] text-mute">Notify me about
-            <select className="ml-3 rounded-md border border-line bg-canvas p-2" value={delivery.data ?? "none"} disabled={delivery.loading} onChange={(event) => { void setNotificationMode(event.target.value as NotificationMode).then(delivery.reload).catch(() => setUsageMessage("Could not save notification preference.")); }}>
+            <select className="ml-3 rounded-md border border-line bg-canvas p-2" value={delivery.data ?? "none"} disabled={delivery.loading} onChange={(event) => { void changeNotificationMode(event.target.value as NotificationMode); }}>
               <option value="none">Nothing</option><option value="important">Major tracker changes only</option><option value="weekly">Weekly summary</option><option value="important-weekly">Major changes + weekly summary</option>
             </select>
           </label>
         </div>
+        {deliveryMessage ? <p role="status" className="mt-2 text-[12px] text-mute">{deliveryMessage}</p> : null}
         <p className="mt-2 text-[12px] text-mute">Immediate and weekly delivery overlap only when you explicitly choose both. Weekly summaries stay quiet if no meaningful changes occurred.</p>
       </section>
       <section className="mb-8">

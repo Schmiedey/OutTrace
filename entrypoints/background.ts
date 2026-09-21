@@ -22,7 +22,7 @@ import {
 } from "@/src/extension/scanFlow";
 import { scanWatchedVisit } from "@/src/extension/watchlistVisit";
 import { revokeWatchlistPermission } from "@/src/extension/watchlistPermission";
-import { blockDomain } from "@/src/extension/block";
+import { blockDomain, restorePersistedBlockRules } from "@/src/extension/block";
 import type { ScanProgressUpdate } from "@/src/extension/scanProgress";
 import {
   CHANGE_NOTIFICATION_ALARM,
@@ -239,6 +239,7 @@ export default defineBackground(() => {
   }
   startBillingBackground();
   void sendUsageCounts(false).catch(() => undefined);
+  void restorePersistedBlockRules().catch(() => undefined);
   installRequestCapture();
   void installWatchedSiteSchedule().catch((error: unknown) => {
     console.error(

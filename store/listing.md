@@ -32,7 +32,7 @@ PRO: $14.99 ONCE
 Unlimited site audits and watched sites, daily or weekly checks, optional change notifications and weekly summaries, and bulk reporting/export. Scheduled checks run while your browser is running and briefly open a site in an inactive tab. They are not always-on cloud monitoring.
 
 LOCAL BY DESIGN
-No OutTrace account is required. Scan contents stay in your browser. You choose which sites to watch and grant site access explicitly. Notifications are off until enabled. Optional anonymous usage counts are also off by default. ExtensionPay and Stripe handle payment details and purchase verification.
+No OutTrace account is required. Scan contents stay in your browser. You choose which sites to watch and grant site access explicitly. Notifications are off until enabled; Chrome only asks to display notifications then. Optional anonymous usage counts are also off by default. ExtensionPay and Stripe handle payment details and purchase verification on extensionpay.com. Chrome may warn that OutTrace can read and change data on that site because checkout returns you to the extension; it is not used to scan websites. OutTrace does not replace your new-tab page.
 
 SUPPORT AND REFUNDS
 Questions, billing help, or refunds: websparkgenerations@gmail.com. Pro is a one-time $14.99 purchase. If payment succeeded but Pro is not unlocked, use Restore purchase in Settings.
@@ -52,3 +52,5 @@ Maintain client websites? See which trackers and outside services appear after u
 
 ## Publication notes
 This is prepared copy for the existing listing (extension ID `eedjncgcdepjbmpapihoigdbdfobmdmc`). Store images live in `store/assets/` at Chrome Web Store sizes: five 1280×800 screenshots, `small-promo-440x280.png`, `marquee-1400x560.png`, and `icon-128.png`. Demonstration data uses `sample-client.test`. Store listing Support URL is https://github.com/Schmiedey/linkscope/issues (Chrome Web Store rejects mailto). Keep websparkgenerations@gmail.com in the description for billing and refunds. Add a privacy-policy URL in the store dashboard when one is hosted.
+
+For 0.5.4 permission review: required permissions are `activeTab`, `scripting`, `alarms`, `storage`, `webRequest`, and `declarativeNetRequestWithHostAccess`. Notifications, context menus, and webNavigation are optional. There is no `tabs` permission and no new-tab override. Justify `declarativeNetRequestWithHostAccess` as user-initiated per-domain blocking after host access is granted. Justify `https://extensionpay.com/*` as Pro checkout/restore only.
