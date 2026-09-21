@@ -4,7 +4,7 @@ import type { Core } from "cytoscape";
 
 function stamp(domain: string): string {
   const day = new Date().toISOString().slice(0, 10);
-  return `linkscope-${domain}-${day}`;
+  return `outtrace-${domain}-${day}`;
 }
 
 export function downloadBlob(filename: string, blob: Blob): void {

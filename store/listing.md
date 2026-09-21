@@ -1,7 +1,7 @@
-# LinkScope store listing
+# OutTrace store listing
 
 ## Name
-LinkScope — Website Changes & Client Reports
+OutTrace — Website Changes & Client Reports
 
 ## Short description
 Monitor website trackers and third-party services. Review changes and prepare client reports. Scan data stays local.
@@ -9,7 +9,7 @@ Monitor website trackers and third-party services. Review changes and prepare cl
 ## Description
 Know what changed. Before your client asks.
 
-LinkScope helps freelancers, developers, and small agencies understand the outside services a website connects to—and review what changes after deployments, plugin updates, or tag changes.
+Formerly LinkScope. OutTrace helps freelancers, developers, and small agencies understand the outside services a website connects to—and review what changes after deployments, plugin updates, or tag changes.
 
 Start with one website you maintain:
 1. Open the page and choose “Check this page.”
@@ -30,19 +30,23 @@ PRO: $14.99 ONCE
 Unlimited site audits and watched sites, daily or weekly checks, optional change notifications and weekly summaries, and bulk reporting/export. Scheduled checks run while your browser is running and briefly open a site in an inactive tab. They are not always-on cloud monitoring.
 
 LOCAL BY DESIGN
-No LinkScope account is required. Scan contents stay in your browser. You choose which sites to watch and grant site access explicitly. Notifications are off until enabled. Optional anonymous usage counts are also off by default. ExtensionPay and Stripe handle payment details and purchase verification.
+No OutTrace account is required. Scan contents stay in your browser. You choose which sites to watch and grant site access explicitly. Notifications are off until enabled. Optional anonymous usage counts are also off by default. ExtensionPay and Stripe handle payment details and purchase verification.
+
+SUPPORT AND REFUNDS
+Questions, billing help, or refunds: websparkgenerations@gmail.com. Pro is a one-time $14.99 purchase. If payment succeeded but Pro is not unlocked, use Restore purchase in Settings.
 
 UNDERSTAND THE EVIDENCE
-LinkScope reports observed connections and an explainable exposure score. It does not certify website safety, consent compliance, or legal compliance. Results can vary with the page, consent choice, login state, location, and timing. Unknown domains remain unknown.
+OutTrace reports observed connections and an explainable exposure score. It does not certify website safety, consent compliance, or legal compliance. Results can vary with the page, consent choice, login state, location, and timing. Unknown domains remain unknown.
 
 ## Screenshot captions
 - Start with one client website.
+- See what a page started talking to after an update.
 - A portfolio that puts unread changes first.
 - Know which services appeared after an update.
 - Bring clear evidence to your next client conversation.
 
 ## Traffic message
-Maintain client websites? See which trackers and outside services appear after updates. Check a page, watch for changes, and prepare a client report with LinkScope. Start free.
+Maintain client websites? See which trackers and outside services appear after updates. Check a page, watch for changes, and prepare a client report with OutTrace. Start free.
 
 ## Publication notes
-This is prepared copy, not a published listing. Confirm the live provider price before publication. Use the existing Chrome Web Store listing and extension ID for upgrades. Add the real support contact, privacy-policy URL, and refund policy in the store dashboard. Any screenshot using sample-client.test is demonstration data, not a customer claim.
+This is prepared copy for the existing listing (extension ID `eedjncgcdepjbmpapihoigdbdfobmdmc`). Store images live in `store/assets/` at Chrome Web Store sizes: five 1280×800 screenshots, `small-promo-440x280.png`, `marquee-1400x560.png`, and `icon-128.png`. Demonstration data uses `sample-client.test`. Store listing Support URL is https://github.com/Schmiedey/linkscope/issues (Chrome Web Store rejects mailto). Keep websparkgenerations@gmail.com in the description for billing and refunds. Add a privacy-policy URL in the store dashboard when one is hosted.

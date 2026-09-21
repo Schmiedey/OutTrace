@@ -14,11 +14,11 @@ export type ProFeature =
 
 const PRO_MESSAGES: Record<ProFeature, string> = {
   "deep-scan": "Single-page scans are free.",
-  "deep-audit": "Deep audits require LinkScope Pro.",
+  "deep-audit": "Deep audits require OutTrace Pro.",
   "unlimited-audits": FREE_AUDIT_LIMIT_MESSAGE,
-  "scheduled-checks": "Scheduled background checks require LinkScope Pro.",
+  "scheduled-checks": "Scheduled background checks require OutTrace Pro.",
   "unlimited-watched-sites": "Free includes two watched sites. Upgrade to Pro for unlimited sites.",
-  export: "Export requires LinkScope Pro.",
+  export: "Export requires OutTrace Pro.",
 };
 
 export function requirePro(status: Pick<BillingStatus, "paid">, feature: ProFeature): void {

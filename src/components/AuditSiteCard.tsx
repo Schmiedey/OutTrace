@@ -43,7 +43,7 @@ export function AuditSiteCard() {
           </h2>
           <p className="mt-1 max-w-xl text-[13px] leading-relaxed text-mute">
             {auditTarget === undefined
-              ? "This is separate from normal page checks. Choose a website when you want LinkScope to crawl several pages."
+              ? "This is separate from a single page check. Use it when you want OutTrace to crawl several pages of a client site."
               : auditTarget
                 ? "Crawl the site in one background tab and measure which services appear across its pages."
                 : "Open a regular website in another tab, then return here to configure its audit."}

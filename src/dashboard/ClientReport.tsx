@@ -75,7 +75,7 @@ export function ClientReportPage() {
             onClick={() => {
               noteUsage("client-report-download-requested");
               downloadBlob(
-                `linkscope-report-${data.scan.domain.replace(/[^a-z0-9.-]/gi, "-")}.txt`,
+                `outtrace-report-${data.scan.domain.replace(/[^a-z0-9.-]/gi, "-")}.txt`,
                 new Blob([siteReportText(data)], {
                   type: "text/plain;charset=utf-8",
                 }),
@@ -95,7 +95,7 @@ export function ClientReportPage() {
         </div>
       </div>
       <p className="text-[11px] tracking-[0.16em] text-mute uppercase">
-        LinkScope · Website connection report
+        OutTrace · Website connection report
       </p>
       <h1 className="font-display mt-3 break-words text-4xl">
         {data.scan.domain}
@@ -192,7 +192,7 @@ export function ClientReportPage() {
           domains are included. Review before sharing.
         </p>
         <p className="mt-3">
-          Prepared with LinkScope · scan data stays in your browser.
+          Prepared with OutTrace · scan data stays in your browser.
         </p>
       </footer>
     </main>

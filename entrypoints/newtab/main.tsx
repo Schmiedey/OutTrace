@@ -50,7 +50,7 @@ function NewTabApp() {
   }
   if (!enabled.data || summary.loading) return null;
   if (summary.error || !summary.data) {
-    return <main className="mx-auto flex min-h-screen max-w-2xl items-center px-8"><p className="text-[13px] text-mute">Your local LinkScope summary is unavailable right now.</p></main>;
+    return <main className="mx-auto flex min-h-screen max-w-2xl items-center px-8"><p className="text-[13px] text-mute">Your local OutTrace summary is unavailable right now.</p></main>;
   }
 
   const { latest, stats, watchedAlerts } = summary.data;
@@ -59,7 +59,7 @@ function NewTabApp() {
     <main className="min-h-screen bg-canvas px-8 py-10 text-ink sm:px-14 sm:py-14">
       <div className="mx-auto max-w-3xl">
         <header className="flex items-baseline justify-between gap-6 border-b border-line pb-5">
-          <p className="text-[11px] font-medium tracking-[0.16em] uppercase">LinkScope</p>
+          <p className="text-[11px] font-medium tracking-[0.16em] uppercase">OutTrace</p>
           <a href={dashboardUrl} className="text-[12px] text-mute underline hover:text-ink">Open dashboard</a>
         </header>
         <section className="mt-16 max-w-2xl">

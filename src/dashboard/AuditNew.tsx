@@ -65,7 +65,7 @@ export function AuditNewPage() {
     <div className="mx-auto max-w-3xl px-10 py-10">
       <p className="text-[12px] tracking-[0.14em] text-mute uppercase">New site audit</p>
       <h1 className="font-display mt-2 text-4xl">Audit an entire site</h1>
-      <p className="mt-3 max-w-xl text-[14px] leading-relaxed text-mute">LinkScope uses one inactive tab, visits same-origin pages, never submits forms, and stores everything locally.</p>
+      <p className="mt-3 max-w-xl text-[14px] leading-relaxed text-mute">OutTrace uses one inactive tab, visits same-origin pages, never submits forms, and stores everything locally for the client report.</p>
 
       <label className="mt-8 block text-[12px] text-mute" htmlFor="audit-url">Website URL</label>
       <input

@@ -34,7 +34,7 @@ export function WatchingPage() {
   if (error) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center px-8 text-center">
-        <p className="text-[12px] text-mute">LinkScope</p>
+        <p className="text-[12px] text-mute">OutTrace</p>
         <h1 className="font-display mt-3 text-4xl">Watch failed</h1>
         <p className="mt-3 max-w-md text-[14px] text-rose">{error}</p>
       </div>

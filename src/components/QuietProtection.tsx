@@ -106,7 +106,7 @@ export function QuietProtection({
         <div className="mt-3 rounded-md border border-line bg-panel p-4">
           <h2 className="text-[15px] font-medium text-ink">Quiet Protection</h2>
           <p className="mt-2 text-[12px]">
-            LinkScope can quietly re-check sites you visit and only surface
+            OutTrace can quietly re-check client sites you visit and only surface
             meaningful changes.
           </p>
           <ul className="mt-2 list-disc space-y-1 pl-4 text-[12px]">

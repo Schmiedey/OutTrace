@@ -38,7 +38,7 @@ export function AppShell() {
     <div className="flex min-h-screen bg-canvas">
       <aside className="sticky top-0 flex h-screen w-52 shrink-0 flex-col border-r border-line">
         <div className="px-5 py-5">
-          <p className="font-display text-xl">LinkScope</p>
+          <p className="font-display text-xl">OutTrace</p>
         </div>
         <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2">
           {NAV.map((item) => (

@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { BillingStatus } from "@/src/billing/extpay";
 import { billingStatus, launchCheckout, launchLogin } from "@/src/billing/client";
 import { Button } from "@/src/components/ui/button";
+import { SUPPORT_EMAIL } from "@/src/support";
 
 const BENEFITS = [
   {
@@ -28,7 +29,7 @@ const BENEFITS = [
   {
     icon: Database,
     title: "Report across your watchlist",
-    description: "Monitor unlimited sites and bulk-export multi-site evidence. Single-page scans and share cards stay free.",
+    description: "Monitor unlimited client sites and bulk-export multi-site evidence. Single-page scans and share cards stay free.",
   },
 ] as const;
 
@@ -108,7 +109,7 @@ export function UpgradeDialog({ open, status, onClose, onStatusChange }: Upgrade
           <div className="p-7 md:p-9">
             <div className="flex items-center gap-2.5">
               <ShieldCheck className="h-4 w-4 text-ink" aria-hidden="true" />
-              <span className="text-[11px] font-medium tracking-[0.16em] uppercase">LinkScope</span>
+              <span className="text-[11px] font-medium tracking-[0.16em] uppercase">OutTrace</span>
               <span className="h-4 w-px bg-line" aria-hidden="true" />
               <span className="font-display text-lg leading-none text-mute">Pro</span>
             </div>
@@ -116,7 +117,7 @@ export function UpgradeDialog({ open, status, onClose, onStatusChange }: Upgrade
               Keep auditing and keep watch.
             </h2>
             <p className="mt-3 max-w-xl text-[14px] leading-relaxed text-mute">
-              Free watches lightly as you browse, with one deep-capable site audit a day and two visit-only watched sites. One payment unlocks unlimited audits and scheduled monitoring—even when you are not there—without sending scan history to a cloud dashboard.
+              Free includes one site audit a day and two visit-only watched sites for the websites you maintain. One payment unlocks unlimited audits, scheduled checks, and multi-site client reporting—without sending scan history to a cloud dashboard.
             </p>
 
             <div className="mt-7 grid gap-x-6 gap-y-5 sm:grid-cols-2">
@@ -164,9 +165,9 @@ export function UpgradeDialog({ open, status, onClose, onStatusChange }: Upgrade
                 {busy === "login" ? "Opening…" : "Already paid? Restore purchase"}
               </button>
               <p className="mt-5 text-center text-[10px] leading-relaxed text-mute">
-                Payment email and card details are handled by Stripe through ExtensionPay for the receipt. LinkScope has no account and scan data stays on this device.
+                Payment email and card details are handled by Stripe through ExtensionPay for the receipt. OutTrace has no account and scan data stays on this device. Questions or refunds: <a className="underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
               </p>
-              {billingOpened ? <p className="mt-3 text-center text-[11px] text-lime">Billing opened. LinkScope will return you to the Pro page after payment.</p> : null}
+              {billingOpened ? <p className="mt-3 text-center text-[11px] text-lime">Billing opened. OutTrace will return you to the Pro page after payment.</p> : null}
               {error || status?.error ? <p className="mt-3 text-center text-[11px] text-rose">{error ?? status?.error}</p> : null}
             </div>
           </aside>

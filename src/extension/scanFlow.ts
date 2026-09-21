@@ -122,7 +122,7 @@ function injectionFailure(error: unknown): Error {
     lower.includes("missing host permission")
   ) {
     return new Error(
-      "LinkScope could not access this page. Reload it and try again, or restore the site-access permission.",
+      "OutTrace could not access this page. Reload it and try again, or restore the site-access permission.",
     );
   }
   if (
@@ -131,7 +131,7 @@ function injectionFailure(error: unknown): Error {
     lower.includes("injection")
   ) {
     return new Error(
-      "This page blocked the LinkScope scanner. Reload the page and try again.",
+      "This page blocked the OutTrace scanner. Reload the page and try again.",
     );
   }
   return new Error("The page could not be scanned. Reload it and try again.");

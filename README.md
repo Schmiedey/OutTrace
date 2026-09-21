@@ -1,8 +1,8 @@
-# LinkScope
+# OutTrace
 
 Local-first Chrome extension for people who maintain websites: inspect third-party connections, watch for changes after updates, and prepare client reports.
 
-Manual scans are unlimited on every plan. Opening LinkScope shows the latest saved capture first and never starts a scan by itself; use **Check this page** for an explicit capture. Optional **Quiet Protection** re-checks known sites after a 6-second dwell, with a 12-hour per-site cooldown, but never establishes a first-ever site baseline implicitly. It is off by default. **Watching** is separate: explicitly monitor a site when you visit, daily, or weekly. Scheduled checks briefly load a website in an inactive tab. LinkScope itself has no account and sends no scan data anywhere. ExtensionPay and Stripe handle only the payment email/card details and Pro verification.
+Manual scans are unlimited on every plan. Opening OutTrace shows the latest saved capture first and never starts a scan by itself; use **Check this page** for an explicit capture. Optional **Quiet Protection** re-checks known sites after a 6-second dwell, with a 12-hour per-site cooldown, but never establishes a first-ever site baseline implicitly. It is off by default. **Watching** is separate: explicitly monitor a site when you visit, daily, or weekly. Scheduled checks briefly load a website in an inactive tab. OutTrace itself has no account and sends no scan data anywhere. ExtensionPay and Stripe handle only the payment email/card details and Pro verification.
 
 ## Client website workflow
 
@@ -10,7 +10,7 @@ The welcome page opens a website you choose and guides your first manual capture
 
 **Client report** is available from site history, graph controls, the popup, and change comparisons. It includes observed third-party resource domains, classification sources, capture dates, changes, and suggested follow-up. Initial captures are labeled as starting points. Passive hyperlinks, page titles, full URLs, and raw evidence are excluded. Reports remain local and can be downloaded as text or printed / saved as PDF through the browser. Review included domains before sharing.
 
-Single-site reports are free. Existing one-time Pro entitlements remain unchanged. Scheduled checks require the browser to be running; LinkScope does not provide always-on cloud monitoring.
+Single-site reports are free. Existing one-time Pro entitlements remain unchanged. Scheduled checks require the browser to be running; OutTrace does not provide always-on cloud monitoring.
 
 ## Load unpacked
 
@@ -24,7 +24,7 @@ Single-site reports are free. Existing one-time Pro entitlements remain unchange
 ## Use it
 
 1. Open any `http`/`https` website
-2. Click the LinkScope icon for an instant saved result; use **Check again** for an explicit fresh capture
+2. Click the OutTrace icon for an instant saved result; use **Check again** for an explicit fresh capture
 3. See the plain-language verdict, score, counts, meaningful change reasons, and capture time; a failed refresh leaves saved content visible
 4. Optionally enable **Quiet Protection** after reading its explanation and granting optional site access; dismissal is remembered
 5. Open **See details** or **See what changed**; graph, deep scan, history/Watching, and share cards remain under secondary controls
@@ -32,20 +32,20 @@ Single-site reports are free. Existing one-time Pro entitlements remain unchange
 
 ## Pro billing and Stripe sandbox
 
-LinkScope uses [ExtensionPay](https://extensionpay.com) for hosted Stripe Checkout and license checks. Create a LinkScope product in ExtensionPay, then set its public product slug:
+OutTrace uses [ExtensionPay](https://extensionpay.com) for hosted Stripe Checkout and license checks. The existing ExtensionPay product slug is `linkscope` (same as the local database name: a billing identifier, not the brand). The Stripe product display name is OutTrace. Support and refunds: `websparkgenerations@gmail.com`.
 
 ```bash
 cp .env.example .env
-# Edit WXT_EXTPAY_EXTENSION_ID if your ExtensionPay slug is not "linkscope"
+# WXT_EXTPAY_EXTENSION_ID defaults to "linkscope". Leave it; it matches the live ExtensionPay product.
 ```
 
-Unpacked development builds automatically use ExtensionPay's development flow and Stripe test mode. Use Stripe's test card in hosted Checkout, then use ExtensionPay's **reset test payment data** control to switch the same test user between paid and unpaid before shipping. Chrome Web Store builds use the live payment flow. Never put a Stripe secret key in this extension.
+Unpacked development builds automatically use ExtensionPay's development flow and Stripe test mode. Use Stripe's test card in hosted Checkout, then use ExtensionPay's **reset test payment data** control to switch the same test user between paid and unpaid before shipping. Chrome Web Store builds use the live payment flow. Never put a Stripe secret key in this extension. Support and refunds go to websparkgenerations@gmail.com.
 
-Connect the Stripe account from the ExtensionPay dashboard. LinkScope does not read Stripe publishable or secret API keys directly. Production builds and ZIPs run a secret scan and fail if a Stripe secret is found in the project.
+Connect the Stripe account from the ExtensionPay dashboard. OutTrace does not read Stripe publishable or secret API keys directly. Production builds and ZIPs run a secret scan and fail if a Stripe secret is found in the project.
 
-LinkScope's commercial build does not bundle Disconnect's non-commercial Tracker Protection dataset. Tracker categories use the original LinkScope curated classifications plus clearly labeled domain-name heuristics. The release guard fails a build if the removed dataset, generator, attribution, or classification source is reintroduced.
+OutTrace's commercial build does not bundle Disconnect's non-commercial Tracker Protection dataset. Tracker categories use the original OutTrace curated classifications plus clearly labeled domain-name heuristics. The release guard fails a build if the removed dataset, generator, attribution, or classification source is reintroduced.
 
-Free includes unlimited manual scans, scores, graph explanations, branded PNG share cards, single-scan exports, saved scans, complete local backups, two visit-only watched sites, and one site audit per local calendar day. The daily free audit can use the same deep iframe-aware mode as Pro. Both plans use the same one-year/1,000-scan device-storage safety boundary; it is never a usage quota. A one-time $14.99 Pro purchase unlocks unlimited site audits, unlimited watched sites, scheduled checks, native digests/change alerts, and bulk reporting/export. Pro access remains active indefinitely. LinkScope never sends scan history or page content to ExtensionPay/Stripe; payment email and card details are handled there for the receipt.
+Free includes unlimited manual scans, scores, graph explanations, branded PNG share cards, single-scan exports, saved scans, complete local backups, two visit-only watched sites, and one site audit per local calendar day. The daily free audit can use the same deep iframe-aware mode as Pro. Both plans use the same one-year/1,000-scan device-storage safety boundary; it is never a usage quota. A one-time $14.99 Pro purchase unlocks unlimited site audits, unlimited watched sites, scheduled checks, native digests/change alerts, and bulk reporting/export. Pro access remains active indefinitely. OutTrace never sends scan history or page content to ExtensionPay/Stripe; payment email and card details are handled there for the receipt.
 
 The toolbar is normally blank: unscanned sites and routine/unchanged captures create no badge. On previously checked sites, `+N` counts unseen notable inbox events and `!` indicates important activity, including watched-site changes elsewhere. Hover explains the event and last saved capture; opening the popup surfaces other sites' activity too. Viewing an event clears it. Action writes are tab-specific and revision-guarded against stale navigation results.
 
@@ -79,7 +79,7 @@ Restoring a complete backup pauses automatic history cleanup until you review th
 
 Local data normally persists through updates when the extension ID and database name remain unchanged. Uninstalling, profile/device loss, or storage failures can remove it. **Protect local storage** asks the browser for persistence protection, but is not a replacement for external backups.
 
-The payment-success content script runs only on `https://extensionpay.com/*`; it lets successful payments and purchase restoration refresh the license cache, then returns the checkout tab to LinkScope's Pro page with a short confirmation state. It does not scan browsing pages. The optional new-tab widget is off by default; when enabled it reads only local summaries and can be turned off to return to the browser's normal new-tab page.
+The payment-success content script runs only on `https://extensionpay.com/*`; it lets successful payments and purchase restoration refresh the license cache, then returns the checkout tab to OutTrace's Pro page with a short confirmation state. It does not scan browsing pages. The optional new-tab widget is off by default; when enabled it reads only local summaries and can be turned off to return to the browser's normal new-tab page.
 
 ## Permissions
 
@@ -92,11 +92,11 @@ The payment-success content script runs only on `https://extensionpay.com/*`; it
 - `declarativeNetRequest` — only if you click **Block this domain**; the resulting dynamic rule persists across browser restarts
 - Optional host access — a watched site asks only for its exact hostname at the moment you add it, alongside a clear explanation. If declined, it remains on the watchlist for manual checks only. Visit alerts run only after a granted watched-origin navigation. Quiet Protection and deep iframe scans retain their separate explicit permission prompts. Removing a watched site revokes its matching hostname access. If a count receiver is configured, enabling anonymous usage counts asks separately for access to that exact HTTPS receiver origin.
 - Optional browser capabilities — Right-click scan and visit navigation observation are requested only when you enable those controls; neither grants website access. The weekly digest is off until selected in Settings and stays quiet when no new trackers appear.
-- `chrome_url_overrides.newtab` — the optional LinkScope new-tab summary is off by default and reads local data only. Disable it in Settings to return to the browser's normal new-tab page.
+- `chrome_url_overrides.newtab` — the optional OutTrace new-tab summary is off by default and reads local data only. Disable it in Settings to return to the browser's normal new-tab page.
 
 No required host permissions. Pages are not injected at `document_start`.
 
-Permission audit: every declared permission above has a matching runtime feature. LinkScope does not request cookies, browsing history, identity, clipboard, or required host access.
+Permission audit: every declared permission above has a matching runtime feature. OutTrace does not request cookies, browsing history, identity, clipboard, or required host access.
 
 ## Development
 

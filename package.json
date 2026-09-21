@@ -1,6 +1,6 @@
 {
-  "name": "linkscope",
-  "description": "See every site, service, tracker, script, and external domain a webpage connects to.",
+  "name": "outtrace",
+  "description": "Local-first Chrome extension for people who maintain websites: inspect third-party connections, watch for changes, and prepare client reports.",
   "private": true,
   "version": "0.5.0",
   "type": "module",

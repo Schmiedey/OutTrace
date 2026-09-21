@@ -127,7 +127,7 @@ export function PopupApp() {
     void (async () => {
       if (typeof browser === "undefined")
         throw new Error(
-          "Open LinkScope from the browser toolbar to check a page.",
+          "Open OutTrace from the browser toolbar to check a page.",
         );
       const target = await getScanTarget();
       if (!alive) return;
@@ -306,7 +306,7 @@ export function PopupApp() {
         <p className="text-[11px] tracking-[0.08em] text-mute uppercase">
           {monthlyStats.data && monthlyStats.data.sitesThisMonth > 0
             ? `${String(monthlyStats.data.trackersSpottedThisMonth)} trackers spotted across ${String(monthlyStats.data.sitesThisMonth)} ${monthlyStats.data.sitesThisMonth === 1 ? "site" : "sites"} this month`
-            : "LinkScope"}
+            : "OutTrace"}
         </p>
         <p className="text-[11px] text-mute">
           {checking ? (glance ? "Refreshing…" : "Checking…") : "Local-first"}
@@ -331,7 +331,7 @@ export function PopupApp() {
       ) : null}
       {billing.data?.paid ? (
         <div role="status" className="mt-3 flex items-center justify-between rounded-md border border-lime/30 bg-panel px-3 py-2">
-          <span className="text-[12px] font-medium">LinkScope Pro</span>
+          <span className="text-[12px] font-medium">OutTrace Pro</span>
           <Badge tone="lime" className="font-medium">Active</Badge>
         </div>
       ) : null}
@@ -474,7 +474,7 @@ export function PopupApp() {
                 ? "That’s today’s free audit. Upgrade removes the daily cap."
                 : upgradeHint === "watch-limit"
                   ? "Your two free watched sites are in use. Pro removes the limit."
-                  : "LinkScope can watch this for you on a schedule."}{" "}
+                  : "OutTrace can watch this client site for you on a schedule."}{" "}
               <button
                 type="button"
                 className="text-ink underline underline-offset-2"

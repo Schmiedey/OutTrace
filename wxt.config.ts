@@ -10,7 +10,7 @@ export default defineConfig({
     },
   },
   manifest: {
-    name: "LinkScope",
+    name: "OutTrace",
     description:
       "Monitor website trackers and third-party services. Review changes and prepare client reports. Scan data stays local.",
     permissions: [
@@ -23,7 +23,7 @@ export default defineConfig({
       "webRequest",
       "declarativeNetRequest",
     ],
-    // These capabilities are requested only from an explicit LinkScope control.
+    // These capabilities are requested only from an explicit OutTrace control.
     // They never grant access to a site by themselves.
     optional_permissions: ["contextMenus", "webNavigation"],
     optional_host_permissions: ["*://*/*"],
@@ -40,7 +40,7 @@ export default defineConfig({
       },
     },
     action: {
-      default_title: "LinkScope",
+      default_title: "OutTrace",
     },
   },
   vite: () => ({

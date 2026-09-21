@@ -19,7 +19,7 @@ Usage reporting is off by default. Counters are always kept in the local extensi
 - `KV_REST_API_URL` and `KV_REST_API_TOKEN`
 - `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`
 
-Deploy the function, set the extension build’s `WXT_USAGE_ENDPOINT` to its HTTPS URL, and rebuild the extension. Apply a platform rate limit to `/api/usage`; rate limiting should happen at the platform edge rather than adding an application-side IP log. Weekly hashes are named `linkscope:usage:YYYY-Www` and contain only event-name fields with integer totals.
+Deploy the function, set the extension build’s `WXT_USAGE_ENDPOINT` to its HTTPS URL, and rebuild the extension. Apply a platform rate limit to `/api/usage`; rate limiting should happen at the platform edge rather than adding an application-side IP log. Weekly hashes stay named `linkscope:usage:YYYY-Www` (a stable storage key, independent of the OutTrace product name) and contain only event-name fields with integer totals.
 
 ## Funnel semantics
 

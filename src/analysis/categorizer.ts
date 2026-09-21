@@ -215,8 +215,8 @@ const SEED: Record<string, DomainCategory> = {
 const SORTED_SUFFIXES = Object.keys(SEED).sort((a, b) => b.length - a.length);
 
 export const LIST_ATTRIBUTION = {
-  source: "LinkScope curated classifications",
-  license: "Original LinkScope project data",
+  source: "OutTrace curated classifications",
+  license: "Original OutTrace project data",
   homepage: "https://github.com/Schmiedey/linkscope",
   generatedAt: "2026-09-14",
   domainCount: SORTED_SUFFIXES.length,

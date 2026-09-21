@@ -103,7 +103,7 @@ const USED_FOR: Record<DomainCategory, string> = {
   support: "Chat, help widgets, or customer tools.",
   infrastructure: "APIs, fonts, or other behind-the-scenes services.",
   telemetry: "Error, performance, or usage reporting.",
-  unknown: "Not on LinkScope’s known list yet.",
+  unknown: "Not on OutTrace’s known list yet.",
 };
 
 function namedFromSuffix(domain: string): string | undefined {
@@ -154,7 +154,7 @@ export function classificationLabel(
 ): string {
   const sourceLabel =
     source === "curated-list"
-      ? "LinkScope list"
+      ? "OutTrace list"
       : source === "heuristic"
         ? "Domain-name heuristic"
         : source === "first-party"

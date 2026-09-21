@@ -98,8 +98,8 @@ export function SiteWatching({
       {explain ? (
         <div className="mt-3 text-[12px] text-mute">
           <p>
-            LinkScope needs permission to check {new URL(url).hostname} when
-            you visit, so it can alert you to new trackers. If you decline,
+            OutTrace needs permission to check {new URL(url).hostname} when
+            you visit, so it can alert you to new trackers on this client site. If you decline,
             this site remains available for manual checks only. Scan contents
             stay local; notifications remain off unless enabled in Settings.
           </p>

@@ -20,6 +20,7 @@ import { QuietProtection } from "@/src/components/QuietProtection";
 import { newTabEnabled, notificationMode, setNewTabEnabled, setNotificationMode, type NotificationMode } from "@/src/storage/settings";
 import { useUpgradePrompt } from "@/src/components/UpgradePrompt";
 import { noteUsage } from "@/src/telemetry/usage";
+import { SUPPORT_EMAIL } from "@/src/support";
 
 export function SettingsPage() {
   const openUpgrade = useUpgradePrompt();
@@ -84,7 +85,7 @@ export function SettingsPage() {
     setBackupBusy(true); setBackupError(null);
     try {
       const backup = await createCompleteBackup();
-      downloadJson("linkscope-complete-backup.json", backup);
+      downloadJson("outtrace-complete-backup.json", backup);
       setBackupMessage("Backup download requested. Keep this private file somewhere safe; it contains website URLs and scan evidence.");
     } catch (error) { setBackupError(error instanceof Error ? error.message : "Could not create backup."); }
     finally { setBackupBusy(false); }
@@ -96,7 +97,7 @@ export function SettingsPage() {
     try {
       if (file.size > 200 * 1024 * 1024) throw new Error("This backup is too large to restore here (maximum 200 MB).");
       const backup = parseCompleteBackup(JSON.parse(await file.text()) as unknown);
-      const confirmed = window.confirm(`Replace this browser's scans, audits, watched sites, alerts, and preferences with this backup (${backup.tables.scans.length} scans, ${backup.tables.audits.length} audits)? Download a backup of your current data first. Close other LinkScope reports and wait for running scans to finish. Automatic protection and restored watching will be off. Existing browser blocks and payment access remain unchanged.`);
+      const confirmed = window.confirm(`Replace this browser's scans, audits, watched sites, alerts, and preferences with this backup (${backup.tables.scans.length} scans, ${backup.tables.audits.length} audits)? Download a backup of your current data first. Close other OutTrace reports and wait for running scans to finish. Automatic protection and restored watching will be off. Existing browser blocks and payment access remain unchanged.`);
       if (!confirmed) return;
       await restoreCompleteBackup(backup);
       delivery.reload(); ignored.reload(); pendingBlocks.reload(); cleanup.reload(); storage.reload();
@@ -117,7 +118,7 @@ export function SettingsPage() {
   const exportAll = async (): Promise<void> => {
     if (!billing.data?.paid) return;
     const data = await exportAllData();
-    downloadJson("linkscope-archive.json", {
+    downloadJson("outtrace-archive.json", {
       ...data,
       list: LIST_ATTRIBUTION,
     });
@@ -130,10 +131,10 @@ export function SettingsPage() {
     try {
       if (action === "checkout") {
         await launchCheckout();
-        setBillingMessage("Checkout opened. LinkScope will return you to the Pro page after payment.");
+        setBillingMessage("Checkout opened. OutTrace will return you to the Pro page after payment.");
       } else if (action === "restore") {
         await launchLogin();
-        setBillingMessage("Restore opened. LinkScope will return you to the Pro page after activation.");
+        setBillingMessage("Restore opened. OutTrace will return you to the Pro page after activation.");
       } else {
         await billingStatus(true);
         billing.reload();
@@ -190,27 +191,27 @@ export function SettingsPage() {
         <h2 className="text-[15px] font-medium">Privacy</h2>
         <p className="mt-2 text-[14px] leading-relaxed text-mute">
           Manual checks use temporary current-tab access. Optional Quiet Protection quietly re-checks visited sites after a 6-second dwell, at most twice per site per day. It is off by default and requires optional site access.
-          Sites you explicitly add to Watching can be revisited daily or weekly from this browser. LinkScope itself has no account and never sends scan content anywhere; ExtensionPay and Stripe handle only the payment email/card details and Pro verification. Manual scans and local history use the same device-safety boundary on every plan. No cloud scan account or sync is used.
+          Sites you explicitly add to Watching can be revisited daily or weekly from this browser. OutTrace itself has no account and never sends scan content anywhere; ExtensionPay and Stripe handle only the payment email/card details and Pro verification. Manual scans and local history use the same device-safety boundary on every plan. No cloud scan account or sync is used.
         </p>
         <QuietProtection />
         <p className="mt-2 text-[12px] text-mute">The toolbar normally stays blank. +N means unseen notable activity; ! means an important change. Hover for the last saved score and capture time.</p>
         <p className="mt-2 text-[12px] text-mute">Watching is separate: choose when you visit, daily, or weekly. Scheduled checks may briefly load the website in an inactive tab.</p>
         <div className="mt-4 rounded-md border border-line bg-panel p-3">
           <p className="text-[13px] text-ink">Right-click scan</p>
-          <p className="mt-1 text-[12px] text-mute">Enable “Scan with LinkScope” in the page menu. This adds no website access; choosing it uses the current page’s temporary access.</p>
+          <p className="mt-1 text-[12px] text-mute">Enable “Scan with OutTrace” in the page menu. This adds no website access; choosing it uses the current page’s temporary access.</p>
           <Button size="sm" variant="ghost" className="mt-2" disabled={contextMenuBusy} onClick={() => { setContextMenuBusy(true); setContextMenuMessage(null); void browser.permissions.request({ permissions: ["contextMenus"] }).then((granted) => setContextMenuMessage(granted ? "Right-click scanning enabled." : "Right-click scanning was not enabled.")).catch(() => setContextMenuMessage("Could not enable right-click scanning.")).finally(() => setContextMenuBusy(false)); }}>{contextMenuBusy ? "Enabling…" : "Enable right-click scan"}</Button>
           {contextMenuMessage ? <p role="status" className="mt-2 text-[11px] text-mute">{contextMenuMessage}</p> : null}
         </div>
         <div className="mt-4 rounded-md border border-line bg-panel p-3">
           <p className="text-[13px] text-ink">New-tab widget</p>
-          <p className="mt-1 text-[12px] text-mute">Off by default. When enabled, a lightweight LinkScope page shows your latest local scan, watched-site alert count, and a dashboard link. Turn it off any time to return to your normal new-tab page.</p>
-          <Button size="sm" variant="ghost" className="mt-2" disabled={newTab.loading} onClick={() => void toggleNewTab()}>{newTab.data ? "New-tab widget on · turn off" : "Show LinkScope on new tab"}</Button>
+          <p className="mt-1 text-[12px] text-mute">Off by default. When enabled, a lightweight OutTrace page shows your latest local scan, watched-site alert count, and a dashboard link. Turn it off any time to return to your normal new-tab page.</p>
+          <Button size="sm" variant="ghost" className="mt-2" disabled={newTab.loading} onClick={() => void toggleNewTab()}>{newTab.data ? "New-tab widget on · turn off" : "Show OutTrace on new tab"}</Button>
           {newTabMessage ? <p role="status" className="mt-2 text-[11px] text-mute">{newTabMessage}</p> : null}
         </div>
       </section>
       <section className="mb-8" aria-label="Pro access">
         <h2 className="text-[15px] font-medium">Pro access</h2>
-        <p className="mt-2 text-[13px] leading-relaxed text-mute">LinkScope itself has no account and never receives your scan history. A one-time $14.99 payment is processed by ExtensionPay and Stripe, including the email and card details needed for your receipt.</p>
+        <p className="mt-2 text-[13px] leading-relaxed text-mute">OutTrace itself has no account and never receives your scan history. A one-time $14.99 payment is processed by ExtensionPay and Stripe, including the email and card details needed for your receipt. Questions or refunds: <a className="text-ink underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {!billing.data?.paid ? <Button className="whitespace-nowrap" disabled={billingBusy !== null || billing.data?.configured === false} onClick={() => void billingAction("checkout")}>{billingBusy === "checkout" ? "Opening checkout…" : "Upgrade to Pro"}</Button> : <Badge tone="lime" className="px-2 py-1 font-medium" role="status">Pro active</Badge>}
           <Button variant="ghost" disabled={billingBusy !== null || billing.data?.configured === false} onClick={() => void billingAction("restore")}>{billingBusy === "restore" ? "Opening…" : "Restore purchase"}</Button>
@@ -221,9 +222,9 @@ export function SettingsPage() {
       </section>
       <section className="mb-8" aria-label="Optional usage counts">
         <h2 className="text-[15px] font-medium">Anonymous aggregate usage counts</h2>
-        <p className="mt-2 text-[13px] text-mute">Off by default. Count a fixed list of product actions: opens, scans, watchlist adds, exports, limit hits, upgrade opens, and checkout milestones. Counts never include URLs, domains, page data, scores, user or install IDs, or client timestamps. LinkScope does not store IP addresses. Nothing from before consent is reconstructed.</p>
-        <p className="mt-2 text-[12px] text-mute">{usage.data?.endpoint ? "When enabled, pending totals are sent at most once a day to LinkScope’s count-only receiver. Failed sends stay queued locally. You can export the same totals for review at any time." : "This build has no aggregate receiver configured. Counts remain on this device and can only be exported for review."} Turning this off erases local totals and the unsent queue.</p>
-        <div className="mt-3 flex flex-wrap gap-2"><Button variant="ghost" disabled={usageBusy || usage.loading} onClick={() => void toggleUsage()}>{usageBusy ? "Updating…" : usage.data?.enabled ? "Usage counts on · turn off" : usage.data?.endpoint ? "Share anonymous counts" : "Enable local usage counts"}</Button><Button variant="ghost" disabled={!usage.data?.enabled || usageBusy} onClick={() => { void usageStatus().then((value) => { downloadJson("linkscope-usage-counts.json", { formatVersion: 1, counts: value.counts }); usage.reload(); }).catch(() => setUsageMessage("Could not export usage counts.")); }}>Export counts for review</Button></div>
+        <p className="mt-2 text-[13px] text-mute">Off by default. Count a fixed list of product actions: opens, scans, watchlist adds, exports, limit hits, upgrade opens, and checkout milestones. Counts never include URLs, domains, page data, scores, user or install IDs, or client timestamps. OutTrace does not store IP addresses. Nothing from before consent is reconstructed.</p>
+        <p className="mt-2 text-[12px] text-mute">{usage.data?.endpoint ? "When enabled, pending totals are sent at most once a day to OutTrace’s count-only receiver. Failed sends stay queued locally. You can export the same totals for review at any time." : "This build has no aggregate receiver configured. Counts remain on this device and can only be exported for review."} Turning this off erases local totals and the unsent queue.</p>
+        <div className="mt-3 flex flex-wrap gap-2"><Button variant="ghost" disabled={usageBusy || usage.loading} onClick={() => void toggleUsage()}>{usageBusy ? "Updating…" : usage.data?.enabled ? "Usage counts on · turn off" : usage.data?.endpoint ? "Share anonymous counts" : "Enable local usage counts"}</Button><Button variant="ghost" disabled={!usage.data?.enabled || usageBusy} onClick={() => { void usageStatus().then((value) => { downloadJson("outtrace-usage-counts.json", { formatVersion: 1, counts: value.counts }); usage.reload(); }).catch(() => setUsageMessage("Could not export usage counts.")); }}>Export counts for review</Button></div>
         {usageMessage ? <p role="status" className="mt-3 text-[12px] text-mute">{usageMessage}</p> : null}
       </section>
       <section className="mb-8" aria-label="Local backups">
@@ -239,7 +240,7 @@ export function SettingsPage() {
         </div>
         {backupMessage ? <p role="status" className="mt-3 text-[13px] text-lime">{backupMessage}</p> : null}
         {backupError ? <p role="alert" className="mt-3 text-[13px] text-rose">{backupError}</p> : null}
-        {cleanup.data ? <div className="mt-4 border border-line p-3"><p className="text-[13px] text-mute">History cleanup is paused after a restore. Saved scans remain protected when cleanup resumes.</p><Button variant="ghost" className="mt-2" disabled={backupBusy} onClick={() => { if (window.confirm("Resume automatic history cleanup? Unsaved scans outside LinkScope’s shared one-year device-storage window may be deleted on the next scan. Download a backup first.")) void resumeHistoryCleanup().then(() => cleanup.reload()).catch(() => setBackupError("Could not resume cleanup.")); }}>Resume history cleanup</Button></div> : null}
+        {cleanup.data ? <div className="mt-4 border border-line p-3"><p className="text-[13px] text-mute">History cleanup is paused after a restore. Saved scans remain protected when cleanup resumes.</p><Button variant="ghost" className="mt-2" disabled={backupBusy} onClick={() => { if (window.confirm("Resume automatic history cleanup? Unsaved scans outside OutTrace’s shared one-year device-storage window may be deleted on the next scan. Download a backup first.")) void resumeHistoryCleanup().then(() => cleanup.reload()).catch(() => setBackupError("Could not resume cleanup.")); }}>Resume history cleanup</Button></div> : null}
         {pendingBlocks.data?.length ? <div className="mt-4"><h3 className="text-[13px] font-medium">Restored blocks awaiting permission</h3><ul className="mt-2 divide-y divide-line">{pendingBlocks.data.map((domain) => <li key={domain} className="flex items-center justify-between gap-3 py-2"><span className="text-[12px]">{domain}</span><Button variant="ghost" disabled={backupBusy} onClick={() => void activateBlock(domain)}>Enable block</Button></li>)}</ul></div> : null}
       </section>
       <section className="mb-8">
@@ -315,6 +316,12 @@ export function SettingsPage() {
         {imported ? <p className="mt-3 text-[13px] text-lime">{imported}</p> : null}
         {importError ? <p className="mt-3 text-[13px] text-rose">{importError}</p> : null}
         {!billing.data?.paid ? <p className="mt-3 text-[12px] text-mute">Pro adds recurring monitoring and bulk exports. Complete local backups remain free.</p> : null}
+      </section>
+      <section className="mb-8" aria-label="Support">
+        <h2 className="text-[15px] font-medium">Support</h2>
+        <p className="mt-2 text-[14px] leading-relaxed text-mute">
+          Email <a className="text-ink underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> for questions, billing help, or refunds. If a payment succeeded but Pro is not unlocked, use Restore purchase above.
+        </p>
       </section>
       <section>
         <h2 className="text-[15px] font-medium">Danger zone</h2>

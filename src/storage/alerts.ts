@@ -95,7 +95,7 @@ async function sendWeeklyDigest(now: number): Promise<void> {
     await browser.notifications.create(`linkscope-digest-${String(Math.floor(now / interval))}`, {
       type: "basic",
       iconUrl: notificationIconUrl(),
-      title: "Your LinkScope week",
+      title: "Your OutTrace week",
       message: `${String(trackers)} new ${trackers === 1 ? "tracker" : "trackers"} spotted across your ${String(count)} watched ${count === 1 ? "site" : "sites"} this week.`,
     });
     await db.settings.put({ key: LAST_DIGEST_KEY, value: String(now) });

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added Chrome Web Store screenshots and promo tiles for OutTrace, showing check-this-page, unread portfolio changes, after-update diffs, and client reports.
+- Pointed Settings, Pro, checkout, and the store listing at support email `websparkgenerations@gmail.com` for questions and refunds. Live Stripe remains one-time $14.99 OutTrace Pro; keys stay out of the extension.
+- Renamed the product to OutTrace (formerly LinkScope) across the store listing, manifest, and UI. IndexedDB, ExtensionPay slug, and Chrome Web Store item ID remain `linkscope`. The live Stripe product is now named OutTrace ($14.99 once). Share cards still print `linkscope.dev`.
 - Added restrained Pro paths to the popup, change comparison, and audit report; share cards now include `linkscope.dev`.
 - Clarified that free Quiet Protection works while browsing while Pro adds scheduled watching, and made deep mode explicit in the free daily audit.
 - Increased Free Watching from one visit-only site to two and removed the obsolete extended-history entitlement.
@@ -11,12 +14,12 @@
 - Locked audit-limit, bulk-export, and watched-site-limit actions now open the checkout dialog without losing the user’s current work.
 - Added consent-only local measurement for paywall touches and checkout start/completion; it never records URLs, domains, or scan data.
 - Pro confirmation is now a short-lived payment animation; the persistent state is simply `Pro active`, and the popup no longer repeats a thank-you message.
-- Hardened the ExtensionPay return flow so checkout and Stripe billing navigation bring the user back to LinkScope even when the hosted tab changes or the original tab closes.
+- Hardened the ExtensionPay return flow so checkout and Stripe billing navigation bring the user back to OutTrace even when the hosted tab changes or the original tab closes.
 
 ## Unreleased
 
 - Reworked Pro billing around a one-time $14.99 ExtensionPay unlock, with cached paid entitlements, a 20-scan/30-day Free history wall, and unlimited Pro history.
-- Return the successful ExtensionPay/Stripe checkout tab to LinkScope's Pro page and show a reduced-motion-safe unlock confirmation; paid surfaces now replace upgrade actions with a Pro-active badge.
+- Return the successful ExtensionPay/Stripe checkout tab to OutTrace's Pro page and show a reduced-motion-safe unlock confirmation; paid surfaces now replace upgrade actions with a Pro-active badge.
 - Added near-limit popup and Settings purchase entry points, one-time payment disclosure, purchase restoration, and “Pro unlocked — thanks!” confirmation.
 - Kept context-menu scans, visit badges, and one free visit-only watched site available without Pro; recurring checks and additional watched sites remain Pro features.
 - Added an “Audit this site” action to every saved-site row and report, and restored the persistent sidebar upgrade control while billing status loads.

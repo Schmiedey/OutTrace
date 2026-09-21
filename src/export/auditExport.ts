@@ -2,7 +2,7 @@ import type { AuditDomainRow, AuditPageRow, AuditRow } from "@/src/audit/types";
 import { downloadBlob, downloadJson } from "@/src/export/scanExport";
 
 function stamp(domain: string): string {
-  return `linkscope-audit-${domain}-${new Date().toISOString().slice(0, 10)}`;
+  return `outtrace-audit-${domain}-${new Date().toISOString().slice(0, 10)}`;
 }
 
 function csvCell(value: string | number | boolean | undefined): string {

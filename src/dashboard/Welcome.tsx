@@ -28,7 +28,7 @@ export function WelcomePage() {
     <main className="min-h-screen bg-canvas px-6 py-10 text-ink sm:px-10 sm:py-14">
       <div className="mx-auto max-w-5xl">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <p className="font-display text-xl">LinkScope</p>
+          <p className="font-display text-xl">OutTrace</p>
           <Link to="/sites" className="text-[13px] underline">
             Open my portfolio
           </Link>
@@ -51,7 +51,7 @@ export function WelcomePage() {
             Start with one client website
           </h2>
           <p className="mt-2 text-[13px] text-mute">
-            Open the site, then click the LinkScope extension and choose “Check
+            Open the site, then click the OutTrace extension and choose “Check
             this page.” Your first capture becomes the starting point for future
             comparisons.
           </p>
@@ -92,7 +92,7 @@ export function WelcomePage() {
           {opened ? (
             <p role="status" className="mt-4 text-[13px]">
               Website opened. Use the puzzle-piece Extensions menu to pin
-              LinkScope, then check the page. Return to your portfolio to review
+              OutTrace, then check the page. Return to your portfolio to review
               and watch it.
             </p>
           ) : null}
@@ -124,7 +124,7 @@ export function WelcomePage() {
           </Link>
         </div>
         <p className="mt-10 max-w-2xl text-[12px] leading-relaxed text-mute">
-          LinkScope reports observed connections. It does not certify legal
+          OutTrace reports observed connections. It does not certify legal
           compliance or website safety. Scan contents stay on this device;
           sharing and monitoring are your choice.
         </p>

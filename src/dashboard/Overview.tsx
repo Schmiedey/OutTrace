@@ -138,7 +138,7 @@ function EmptyState() {
     <div className="py-10">
       <p className="font-display text-2xl">No scans yet</p>
       <p className="mt-2 text-[13px] text-mute">
-        Open a website and choose “Check this page” in LinkScope. Then watch it to compare future captures.
+        Open a client website and choose “Check this page” in OutTrace. Then watch it to compare future captures.
       </p>
     </div>
   );

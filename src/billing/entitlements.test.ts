@@ -10,7 +10,7 @@ describe("Pro entitlements", () => {
     const action = vi.fn(() => "ran");
 
     await expect(runProAction({ paid: false }, "export", action)).rejects.toThrow(
-      "Export requires LinkScope Pro.",
+      "Export requires OutTrace Pro.",
     );
     expect(action).not.toHaveBeenCalled();
   });
@@ -24,7 +24,7 @@ describe("Pro entitlements", () => {
 
   it("uses the feature-specific error at the service boundary", () => {
     expect(() => requirePro({ paid: false }, "deep-audit")).toThrow(
-      "Deep audits require LinkScope Pro.",
+      "Deep audits require OutTrace Pro.",
     );
     expect(() => requirePro({ paid: true }, "deep-audit")).not.toThrow();
   });

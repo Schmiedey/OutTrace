@@ -23,7 +23,7 @@ export async function createShareCard(scan: ScanRow, snapshot: ScanGraphSnapshot
   if (!ctx) throw new Error("This browser could not create a share card.");
   ctx.fillStyle = "#faf9f6"; ctx.fillRect(0, 0, 1200, 630);
   ctx.fillStyle = "#171717"; ctx.fillRect(0, 0, 14, 630);
-  ctx.font = "600 24px 'IBM Plex Sans', sans-serif"; ctx.fillText("LINKSCOPE", 60, 64);
+  ctx.font = "600 24px 'IBM Plex Sans', sans-serif"; ctx.fillText("OUTTRACE", 60, 64);
   ctx.fillStyle = "#737373"; ctx.font = "20px 'IBM Plex Sans', sans-serif"; ctx.fillText(`Captured ${data.captured}`, 850, 64);
   ctx.fillStyle = "#171717"; ctx.font = "48px 'IBM Plex Sans', sans-serif"; ctx.fillText(fitText(ctx, data.site, 1070), 60, 148);
   const color = data.score >= 70 ? "#3f6212" : data.score >= 40 ? "#92400e" : "#b91c1c";
@@ -34,7 +34,7 @@ export async function createShareCard(scan: ScanRow, snapshot: ScanGraphSnapshot
   ctx.font = "27px 'IBM Plex Sans', sans-serif"; ctx.fillText(`${data.trackers} classified tracking ${data.trackers === 1 ? "domain" : "domains"}`, 490, 310);
   ctx.fillStyle = "#737373"; ctx.font = "23px 'IBM Plex Sans', sans-serif"; ctx.fillText(`${data.unknown} unclassified resource ${data.unknown === 1 ? "domain" : "domains"}`, 490, 350);
   ctx.strokeStyle = "#d4d4d4"; ctx.beginPath(); ctx.moveTo(60, 442); ctx.lineTo(1140, 442); ctx.stroke();
-  ctx.fillStyle = "#171717"; ctx.font = "24px 'IBM Plex Sans', sans-serif"; ctx.fillText("See what a page connects to. Keep your scans local.", 60, 490);
+  ctx.fillStyle = "#171717"; ctx.font = "24px 'IBM Plex Sans', sans-serif"; ctx.fillText("See what a client page connects to. Keep scans local.", 60, 490);
   ctx.fillStyle = "#737373"; ctx.font = "18px 'IBM Plex Sans', sans-serif";
   ctx.fillText(`Heuristic model v${data.modelVersion} · One capture, not a safety certification.`, 60, 542);
   ctx.fillText("Higher = less classified tracking found. Unknown does not mean safe.", 60, 574);

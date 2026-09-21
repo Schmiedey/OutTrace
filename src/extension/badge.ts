@@ -44,7 +44,7 @@ export function badgeForGlance(input: {
         ? `+${activity.length > 9 ? "9+" : activity.length}`
         : "",
     color: important ? "#b91c1c" : "#a16207",
-    title: `LinkScope — ${activity.length ? `${summary} · ` : ""}Score ${score.score} · ${graphScore?.trackers ?? input.latest.trackerCount} trackers · checked ${formatRelativeTime(input.latest.timestamp, Date.now())} (saved capture)`,
+    title: `OutTrace — ${activity.length ? `${summary} · ` : ""}Score ${score.score} · ${graphScore?.trackers ?? input.latest.trackerCount} trackers · checked ${formatRelativeTime(input.latest.timestamp, Date.now())} (saved capture)`,
   };
 }
 
@@ -63,7 +63,7 @@ export async function applyActionState({
   let hint: BadgeHint = {
     text: "",
     color: "#a16207",
-    title: "LinkScope — click to check this page. No saved capture yet.",
+    title: "OutTrace — click to check this page. No saved capture yet.",
   };
   if (url && canScanUrl(url)) {
     const domain = registrableDomain(url) ?? new URL(url).hostname;
@@ -76,7 +76,7 @@ export async function applyActionState({
   if (revisions.get(tabId) !== revision) return;
   await Promise.all([
     browser.action.setBadgeText({ tabId, text: hint.text }),
-    browser.action.setTitle?.({ tabId, title: hint.title ?? "LinkScope" }),
+    browser.action.setTitle?.({ tabId, title: hint.title ?? "OutTrace" }),
     browser.action.setBadgeBackgroundColor?.({ tabId, color: hint.color }),
   ]);
 }
@@ -103,6 +103,6 @@ export async function setWatchlistBadge(tabId: number, newDomains: number): Prom
   await Promise.all([
     browser.action.setBadgeText({ tabId, text: String(newDomains) }),
     browser.action.setBadgeBackgroundColor?.({ tabId, color: "#a16207" }),
-    browser.action.setTitle?.({ tabId, title: `LinkScope — ${String(newDomains)} new ${newDomains === 1 ? "domain" : "domains"} on this watched site` }),
+    browser.action.setTitle?.({ tabId, title: `OutTrace — ${String(newDomains)} new ${newDomains === 1 ? "domain" : "domains"} on this watched site` }),
   ]);
 }

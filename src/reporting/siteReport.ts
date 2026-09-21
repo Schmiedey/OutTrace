@@ -74,7 +74,7 @@ export function siteReportText(report: SiteReport): string {
   const { scan, previous, score, resources, added, removed, nextSteps } =
     report;
   return [
-    "LINKSCOPE · WEBSITE CONNECTION REPORT",
+    "OUTTRACE · WEBSITE CONNECTION REPORT",
     scan.domain,
     `Captured: ${new Date(scan.timestamp).toISOString()}`,
     previous
@@ -105,6 +105,6 @@ export function siteReportText(report: SiteReport): string {
     REPORT_LIMITATION,
     "Full page URLs, titles, and raw evidence are omitted from this report. Site and service domains are included. Review before sharing.",
     "",
-    "Prepared with LinkScope · scan data stays in your browser.",
+    "Prepared with OutTrace · scan data stays in your browser.",
   ].join("\n");
 }

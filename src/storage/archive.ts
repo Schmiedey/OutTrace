@@ -51,11 +51,11 @@ export async function exportArchive(): Promise<ArchivePayload> {
 
 export function parseArchive(raw: unknown): ArchivePayload {
   if (!raw || typeof raw !== "object") {
-    throw new Error("This file is not a LinkScope archive.");
+    throw new Error("This file is not an OutTrace archive.");
   }
   const data = raw as Record<string, unknown>;
   if (data.formatVersion !== undefined && data.formatVersion !== 1) {
-    throw new Error("This backup uses a newer format. Update LinkScope before importing it.");
+    throw new Error("This backup uses a newer format. Update OutTrace before importing it.");
   }
   if (!Array.isArray(data.sites) || !Array.isArray(data.scans) || !Array.isArray(data.graphs)) {
     throw new Error("This file is missing sites, scans, or graphs.");

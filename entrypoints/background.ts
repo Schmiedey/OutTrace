@@ -177,7 +177,7 @@ function createScanContextMenu(): void {
     void Promise.resolve(
       browser.contextMenus?.create({
         id: "linkscope-scan",
-        title: "Scan with LinkScope",
+        title: "Scan with OutTrace",
         contexts: ["page"],
       }),
     ).catch(() => undefined);

@@ -181,7 +181,7 @@ export function SitesPage() {
           <p className="mt-2 text-mute">
             {rows.length
               ? "Try another filter or search."
-              : "Open the website, use LinkScope to check a page, then watch it for changes. You can also add a watched site below."}
+              : "Open the website, use OutTrace to check a page, then watch it for changes you can put in a client report. You can also add a watched site below."}
           </p>
           {!rows.length ? (
             <Link className="mt-5 inline-block underline" to="/following">

@@ -37,7 +37,7 @@ const BILLING_PROVIDER_URLS = [
 ];
 
 // The product slug is public configuration. Keep the env override for forks,
-// but make the published LinkScope build work from a clean clone as well.
+// but make the published OutTrace build work from a clean clone as well.
 const extensionPayId = (import.meta.env.WXT_EXTPAY_EXTENSION_ID || "linkscope").trim();
 const configuredExtensionPayId = extensionPayId;
 const extpay = ExtPay(extensionPayId);
@@ -138,7 +138,7 @@ async function rememberBillingReturnTab(): Promise<void> {
     const fallbackTabId = sourceIsProviderTab
       ? previousState?.fallbackTabId
       : sourceTab?.id;
-    // Save the LinkScope tab before opening hosted checkout. If the provider
+    // Save the OutTrace tab before opening hosted checkout. If the provider
     // navigates through Stripe before the tab query catches up, this gives us
     // a reliable tab to bring back to the app.
     if (sourceTab?.id !== undefined || fallbackTabId !== undefined) {
@@ -166,7 +166,7 @@ async function rememberBillingReturnTab(): Promise<void> {
   }
 }
 
-async function returnToLinkScopeAfterPayment(completedTabId?: number): Promise<void> {
+async function returnToOutTraceAfterPayment(completedTabId?: number): Promise<void> {
   const url = browser.runtime.getURL(BILLING_SUCCESS_URL);
   const candidateTabIds: number[] = [];
   try {
@@ -216,7 +216,7 @@ async function handlePaidReturn(completedTabId?: number): Promise<void> {
     const status = await getBillingStatus(true).catch(() => undefined);
     if (status?.paid !== true) return;
     noteUsage("checkout-completed");
-    await returnToLinkScopeAfterPayment(completedTabId);
+    await returnToOutTraceAfterPayment(completedTabId);
   } finally {
     paymentReturnInFlight = false;
   }
