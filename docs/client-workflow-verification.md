@@ -1,7 +1,7 @@
 # Client website release verification
 
 ## Implemented
-- Welcome → open a client website → manual capture → monitoring setup.
+- Welcome → visual pin / open-the-site / Check this page walkthrough → manual capture → monitoring setup.
 - Portfolio combines saved sites and watchlist entries; unread meaningful changes sort first.
 - Overview no longer marks all alerts as read. Opening a change comparison still marks its activity read.
 - Single-site reports preview locally, download as text, and invoke the browser print dialog for print/PDF output.
@@ -11,7 +11,7 @@
 
 ## Verification performed
 - Production build, type check, secret scan, classification licensing guard, and automated test suite.
-- Isolated Chromium installation of the built extension: welcome page rendered and its website action opened example.com.
+- Isolated Chromium installation of the built extension: welcome page rendered the pin → open the site → Check this page walkthrough.
 - Isolated synthetic captures: portfolio populated; unread changes remained unread after opening Overview and cleared after opening their comparison.
 - Client report rendered the new resource domain and captured dates. Browser text download succeeded. Private URL/query, title, and evidence markers did not appear in the report or download.
 - Browser errors were empty during the verified flows.

@@ -8,7 +8,7 @@ Manual scans are unlimited on every plan. Opening OutTrace shows the latest save
 
 ## Client website workflow
 
-The welcome page opens a website you choose and guides your first manual capture. The popup then offers monitoring setup. **Portfolio** brings scanned and watched sites together, puts unread meaningful changes first, and shows failed checks or missing site access. Merely opening Overview does not mark activity as read.
+The welcome page shows how a first check actually works: pin OutTrace, open a client site in Chrome, then choose **Check this page**. The popup then offers monitoring setup. **Portfolio** brings scanned and watched sites together, puts unread meaningful changes first, and shows failed checks or missing site access. Merely opening Overview does not mark activity as read.
 
 **Client report** is available from site history, graph controls, the popup, and change comparisons. It includes observed third-party resource domains, classification sources, capture dates, changes, and suggested follow-up. Initial captures are labeled as starting points. Passive hyperlinks, page titles, full URLs, and raw evidence are excluded. Reports remain local and can be downloaded as text or printed / saved as PDF through the browser. Review included domains before sharing.
 

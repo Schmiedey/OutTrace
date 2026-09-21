@@ -1,33 +1,21 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Eye, FileText, ScanSearch } from "lucide-react";
+import { Eye, FileText, ScanSearch } from "lucide-react";
 import { ProductHuntBadge } from "@/src/components/ProductHuntBadge";
-import { Button } from "@/src/components/ui/button";
-import { normalizeWatchedSiteUrl } from "@/src/storage/watchedSites";
+import {
+  OnboardingScreenshot,
+  OnboardingStep,
+} from "@/src/components/welcome/OnboardingScreenshot";
+
+const ONBOARDING = {
+  pin: "/onboarding/pin-outtrace.png",
+  site: "/onboarding/open-site.png",
+  check: "/onboarding/check-page.png",
+} as const;
 
 export function WelcomePage() {
-  const [url, setUrl] = useState("");
-  const [opened, setOpened] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const openSite = async () => {
-    setError(null);
-    setBusy(true);
-    try {
-      const target = normalizeWatchedSiteUrl(url);
-      await browser.tabs.create({ url: target.url });
-      setOpened(true);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Could not open this website.",
-      );
-    } finally {
-      setBusy(false);
-    }
-  };
   return (
     <main className="min-h-screen bg-canvas px-6 py-10 text-ink sm:px-10 sm:py-14">
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-6xl">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <p className="font-display text-xl">OutTrace</p>
           <Link to="/sites" className="text-[13px] underline">
@@ -47,74 +35,98 @@ export function WelcomePage() {
           after updates. Turn the evidence into a clear client report—all in
           your browser.
         </p>
-        <section className="mt-9 max-w-2xl rounded-md border border-line bg-panel p-6">
-          <h2 className="font-display text-2xl">
-            Start with one client website
-          </h2>
-          <p className="mt-2 text-[13px] text-mute">
-            Open the site, then click the OutTrace extension and choose “Check
-            this page.” Your first capture becomes the starting point for future
-            comparisons.
+
+        <section className="mt-14" aria-labelledby="how-a-check-works">
+          <p className="text-[11px] tracking-[0.16em] text-mute uppercase">
+            Get started
           </p>
-          <form
-            className="mt-5"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void openSite();
-            }}
+          <h2
+            id="how-a-check-works"
+            className="font-display mt-2 text-3xl sm:text-4xl"
           >
-            <label htmlFor="first-site" className="text-[12px] text-mute">
-              Website address
-            </label>
-            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-              <input
-                id="first-site"
-                value={url}
-                onChange={(event) => {
-                  setUrl(event.target.value);
-                  setOpened(false);
-                }}
-                placeholder="your-client.com"
-                autoComplete="url"
-                required
-                className="h-11 min-w-0 flex-1 rounded-md border border-line bg-canvas px-3 outline-none focus:border-ink"
-              />
-              <Button type="submit" disabled={!url.trim() || busy}>
-                {busy ? "Opening…" : "Open website"}
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-          </form>
-          {error ? (
-            <p role="alert" className="mt-3 text-[13px] text-rose">
-              {error}
-            </p>
-          ) : null}
-          {opened ? (
-            <p role="status" className="mt-4 text-[13px]">
-              Website opened. Use the puzzle-piece Extensions menu to pin
-              OutTrace, then check the page. Return to your portfolio to review
-              and watch it.
-            </p>
-          ) : null}
-          <p className="mt-4 text-[12px] text-mute">
-            Opening a website does not start a scan. No account needed. Manual
-            page checks are unlimited and free.
+            Your first check in three steps
+          </h2>
+          <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-mute">
+            Pin OutTrace, open a client site in Chrome, then capture that page
+            from the toolbar. That first snapshot is what future comparisons
+            build on.
           </p>
+
+          <ol className="mt-12 space-y-16 sm:space-y-20">
+            <OnboardingStep
+              number="Step 01"
+              title="Pin OutTrace to the toolbar"
+              visual={
+                <OnboardingScreenshot
+                  src={ONBOARDING.pin}
+                  alt="Chrome extensions menu with OutTrace pinned to the toolbar"
+                  aspect="720/520"
+                  badge="Pin"
+                />
+              }
+            >
+              <p>
+                Click the puzzle piece in Chrome, find OutTrace, and click the
+                pin so the icon stays visible.
+              </p>
+            </OnboardingStep>
+
+            <OnboardingStep
+              number="Step 02"
+              title="Open the client site"
+              reverse
+              visual={
+                <OnboardingScreenshot
+                  src={ONBOARDING.site}
+                  alt="Browser tab open on a client website ready to scan"
+                  aspect="870/800"
+                  badge="Site"
+                />
+              }
+            >
+              <p>
+                Go to the page you maintain — homepage, checkout, or the view you
+                want to document. OutTrace reads the live tab when you check it.
+              </p>
+            </OnboardingStep>
+
+            <OnboardingStep
+              number="Step 03"
+              title="Check this page"
+              visual={
+                <OnboardingScreenshot
+                  src={ONBOARDING.check}
+                  alt="OutTrace popup showing Check this page on a client site"
+                  aspect="1280/800"
+                  badge="Capture"
+                />
+              }
+            >
+              <p>
+                Click the OutTrace icon, then “Check this page.” You’ll see
+                trackers, third parties, and unknown services for that capture.
+              </p>
+              <p className="text-[13px]">
+                Shortcut: Alt+Shift+L. Manual checks are unlimited and free. No
+                account.
+              </p>
+            </OnboardingStep>
+          </ol>
         </section>
-        <section className="mt-10 grid gap-px overflow-hidden rounded-md border border-line bg-line md:grid-cols-3">
-          <Step icon={ScanSearch} number="01" title="Check the page">
-            See which third parties connect to the page, with known trackers and
-            unknown services clearly distinguished.
-          </Step>
-          <Step icon={Eye} number="02" title="Watch for changes">
+
+        <section className="mt-16 grid gap-px overflow-hidden rounded-md border border-line bg-line md:grid-cols-3">
+          <Outcome icon={ScanSearch} number="01" title="See what connected">
+            Known trackers and unknown services are distinguished on that page,
+            and stay on this device.
+          </Outcome>
+          <Outcome icon={Eye} number="02" title="Watch for changes">
             Watch two sites when you visit for free. Pro adds daily and weekly
             checks while your browser is running.
-          </Step>
-          <Step icon={FileText} number="03" title="Show the evidence">
-            Review new services after an update, then download or print a report
-            for your client.
-          </Step>
+          </Outcome>
+          <Outcome icon={FileText} number="03" title="Show the evidence">
+            After an update, compare captures and download or print a report for
+            your client.
+          </Outcome>
         </section>
         <div className="mt-8 flex flex-wrap justify-between gap-4 text-[13px]">
           <Link to="/audits/new" className="underline">
@@ -136,7 +148,8 @@ export function WelcomePage() {
     </main>
   );
 }
-function Step({
+
+function Outcome({
   icon: Icon,
   number,
   title,

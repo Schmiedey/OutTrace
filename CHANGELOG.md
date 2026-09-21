@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Replaced the welcome-page URL form with screenshot-quality onboarding visuals (pin → open the client site → Check this page).
+
 ## 0.5.4 — 2026-09-20
 
 - Removed the New Tab page override so Chrome no longer warns that OutTrace replaces the page you see when opening a new tab.
