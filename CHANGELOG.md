@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.2 — 2026-09-20
+
+- Added a Manage billing button for Pro users that opens ExtensionPay for receipts, restore, and billing help.
+
 ## 0.5.1 — 2026-09-20
 
 - Fixed the global graph empty state when no sites have been checked yet.

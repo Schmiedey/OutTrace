@@ -1,7 +1,7 @@
 import { BellRing, Check, CheckCircle2, Clock3, Database, Eye } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { billingStatus, launchCheckout, launchLogin } from "@/src/billing/client";
+import { billingStatus, launchCheckout, launchLogin, launchManageBilling } from "@/src/billing/client";
 import { Button } from "@/src/components/ui/button";
 import { Badge } from "@/src/components/ui/badge";
 import { useAsync } from "@/src/lib/useAsync";
@@ -10,13 +10,13 @@ import { SUPPORT_EMAIL } from "@/src/support";
 export function ProPage() {
   const location = useLocation();
   const billing = useAsync(() => billingStatus(true), []);
-  const [busy, setBusy] = useState<"checkout" | "login" | "refresh" | null>(null);
+  const [busy, setBusy] = useState<"checkout" | "login" | "manage" | "refresh" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [checkoutOpened, setCheckoutOpened] = useState(false);
   const paymentConfirmed = new URLSearchParams(location.search).get("billing") === "success";
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const status = billing.data;
-  const run = async (action: "checkout" | "login" | "refresh"): Promise<void> => {
+  const run = async (action: "checkout" | "login" | "manage" | "refresh"): Promise<void> => {
     setBusy(action); setError(null);
     try {
       if (action === "checkout") {
@@ -24,6 +24,8 @@ export function ProPage() {
         setCheckoutOpened(true);
       } else if (action === "login") {
         await launchLogin();
+      } else if (action === "manage") {
+        await launchManageBilling();
       } else await billingStatus(true);
       billing.reload();
     } catch (err) { setError(err instanceof Error ? err.message : "Could not open billing."); }
@@ -60,7 +62,7 @@ export function ProPage() {
       <Benefit icon={Clock3} title="Ongoing checks">Daily or weekly checks run locally while your browser is open.</Benefit>
       <Benefit icon={Database} title="Portable evidence">Turn observed changes into reports for your client updates.</Benefit>
     </section>
-    <section className="mt-8 rounded-md border border-line p-5"><p className="text-[14px] font-medium">{proActive ? "Pro active" : status?.configured === false ? "Connect ExtensionPay to enable checkout" : "Free plan"}</p><p className="mt-1 text-[12px] text-mute">{status?.sandbox ? "This unpacked build uses ExtensionPay’s development flow and Stripe test cards. Use ExtensionPay’s reset control to switch the test user between paid and unpaid." : "OutTrace has no account. ExtensionPay and Stripe handle payment email/card details and Pro verification."}</p>{checkoutOpened && !proActive ? <p className="mt-3 text-[12px] text-lime">Checkout opened. OutTrace will return you to the Pro page after payment.</p> : null}{error || status?.error ? <p className="mt-3 text-[12px] text-rose">{error ?? status?.error}</p> : null}<div className="mt-4 flex flex-wrap items-center gap-2">{proActive ? <Badge tone="lime" className="font-medium">Pro active</Badge> : <Button className="whitespace-nowrap" disabled={Boolean(busy) || status?.configured === false} onClick={() => void run("checkout")}>{busy === "checkout" ? "Opening…" : "Upgrade to Pro"}</Button>}<Button variant="ghost" disabled={Boolean(busy) || status?.configured === false} onClick={() => void run("login")}>{busy === "login" ? "Opening…" : "Restore purchase"}</Button><Button variant="ghost" disabled={Boolean(busy)} onClick={() => void run("refresh")}>{busy === "refresh" ? "Checking…" : "Refresh status"}</Button></div><p className="mt-4 text-[12px] text-mute">Questions or refunds: <a className="text-ink underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a></p></section>
+    <section className="mt-8 rounded-md border border-line p-5"><p className="text-[14px] font-medium">{proActive ? "Pro active" : status?.configured === false ? "Connect ExtensionPay to enable checkout" : "Free plan"}</p><p className="mt-1 text-[12px] text-mute">{status?.sandbox ? "This unpacked build uses ExtensionPay’s development flow and Stripe test cards. Use ExtensionPay’s reset control to switch the test user between paid and unpaid." : "OutTrace has no account. ExtensionPay and Stripe handle payment email/card details and Pro verification."}</p>{checkoutOpened && !proActive ? <p className="mt-3 text-[12px] text-lime">Checkout opened. OutTrace will return you to the Pro page after payment.</p> : null}{error || status?.error ? <p className="mt-3 text-[12px] text-rose">{error ?? status?.error}</p> : null}<div className="mt-4 flex flex-wrap items-center gap-2">{proActive ? <Badge tone="lime" className="font-medium">Pro active</Badge> : <Button className="whitespace-nowrap" disabled={Boolean(busy) || status?.configured === false} onClick={() => void run("checkout")}>{busy === "checkout" ? "Opening…" : "Upgrade to Pro"}</Button>}{proActive ? <Button variant="ghost" disabled={Boolean(busy) || status?.configured === false} onClick={() => void run("manage")}>{busy === "manage" ? "Opening…" : "Manage billing"}</Button> : <Button variant="ghost" disabled={Boolean(busy) || status?.configured === false} onClick={() => void run("login")}>{busy === "login" ? "Opening…" : "Restore purchase"}</Button>}<Button variant="ghost" disabled={Boolean(busy)} onClick={() => void run("refresh")}>{busy === "refresh" ? "Checking…" : "Refresh status"}</Button></div><p className="mt-4 text-[12px] text-mute">{proActive ? "Manage billing opens ExtensionPay for receipts and restore. Refunds: " : "Questions or refunds: "}<a className="text-ink underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a></p></section>
   </div>;
 }
 

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { billingStatus, launchCheckout, launchLogin } from "@/src/billing/client";
+import { billingStatus, launchCheckout, launchLogin, launchManageBilling } from "@/src/billing/client";
 import { Button } from "@/src/components/ui/button";
 import { Badge } from "@/src/components/ui/badge";
 import { LIST_ATTRIBUTION } from "@/src/analysis/categorizer";
@@ -69,7 +69,7 @@ export function SettingsPage() {
   const ignored = useAsync(() => listIgnoredDomains(), []);
   const billing = useAsync(() => billingStatus(true), []);
   const newTab = useAsync(newTabEnabled, []);
-  const [billingBusy, setBillingBusy] = useState<"checkout" | "restore" | "refresh" | null>(null);
+  const [billingBusy, setBillingBusy] = useState<"checkout" | "restore" | "manage" | "refresh" | null>(null);
   const [billingMessage, setBillingMessage] = useState<string | null>(null);
   const [newTabMessage, setNewTabMessage] = useState<string | null>(null);
 
@@ -125,7 +125,7 @@ export function SettingsPage() {
     setExported(true);
   };
 
-  const billingAction = async (action: "checkout" | "restore" | "refresh"): Promise<void> => {
+  const billingAction = async (action: "checkout" | "restore" | "manage" | "refresh"): Promise<void> => {
     setBillingBusy(action);
     setBillingMessage(null);
     try {
@@ -135,6 +135,9 @@ export function SettingsPage() {
       } else if (action === "restore") {
         await launchLogin();
         setBillingMessage("Restore opened. OutTrace will return you to the Pro page after activation.");
+      } else if (action === "manage") {
+        await launchManageBilling();
+        setBillingMessage("Billing portal opened. Use it for receipts, restore on another browser, or refund help.");
       } else {
         await billingStatus(true);
         billing.reload();
@@ -214,9 +217,14 @@ export function SettingsPage() {
         <p className="mt-2 text-[13px] leading-relaxed text-mute">OutTrace itself has no account and never receives your scan history. A one-time $14.99 payment is processed by ExtensionPay and Stripe, including the email and card details needed for your receipt. Questions or refunds: <a className="text-ink underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {!billing.data?.paid ? <Button className="whitespace-nowrap" disabled={billingBusy !== null || billing.data?.configured === false} onClick={() => void billingAction("checkout")}>{billingBusy === "checkout" ? "Opening checkout…" : "Upgrade to Pro"}</Button> : <Badge tone="lime" className="px-2 py-1 font-medium" role="status">Pro active</Badge>}
-          <Button variant="ghost" disabled={billingBusy !== null || billing.data?.configured === false} onClick={() => void billingAction("restore")}>{billingBusy === "restore" ? "Opening…" : "Restore purchase"}</Button>
+          {billing.data?.paid ? (
+            <Button variant="ghost" disabled={billingBusy !== null || billing.data?.configured === false} onClick={() => void billingAction("manage")}>{billingBusy === "manage" ? "Opening…" : "Manage billing"}</Button>
+          ) : (
+            <Button variant="ghost" disabled={billingBusy !== null || billing.data?.configured === false} onClick={() => void billingAction("restore")}>{billingBusy === "restore" ? "Opening…" : "Restore purchase"}</Button>
+          )}
           <Button variant="ghost" disabled={billingBusy !== null} onClick={() => void billingAction("refresh")}>{billingBusy === "refresh" ? "Checking…" : "Refresh Pro status"}</Button>
         </div>
+        {billing.data?.paid ? <p className="mt-2 text-[12px] text-mute">Manage billing opens ExtensionPay for receipts and restore. Email <a className="text-ink underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> for refund help.</p> : null}
         {billingMessage ? <p role="status" className="mt-3 text-[12px] text-mute">{billingMessage}</p> : null}
         {billing.data?.error ? <p role="alert" className="mt-2 text-[12px] text-rose">{billing.data.error}</p> : null}
       </section>

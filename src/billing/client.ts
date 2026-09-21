@@ -17,3 +17,8 @@ export async function launchLogin(): Promise<void> {
   const response = (await browser.runtime.sendMessage({ type: "OPEN_PRO_LOGIN" })) as BillingResponse;
   if (!response?.ok) throw new Error(response?.error ?? "Could not open account login.");
 }
+
+export async function launchManageBilling(): Promise<void> {
+  const response = (await browser.runtime.sendMessage({ type: "OPEN_BILLING_MANAGEMENT" })) as BillingResponse;
+  if (!response?.ok) throw new Error(response?.error ?? "Could not open billing management.");
+}

@@ -350,6 +350,18 @@ export async function openProLogin(): Promise<void> {
   await rememberBillingReturnTab();
 }
 
+/** ExtensionPay account page for receipts, restore, and billing help. */
+export async function openBillingManagement(): Promise<void> {
+  if (!configuredExtensionPayId) {
+    throw new Error("Set WXT_EXTPAY_EXTENSION_ID before opening billing management.");
+  }
+  await invalidateBillingCache();
+  await rememberBillingReturnTab();
+  await extpay.openLoginPage();
+  await rememberBillingReturnTab();
+  noteUsage("billing-management-opened");
+}
+
 async function invalidateBillingCache(): Promise<void> {
   const cached = await readCachedStatus();
   if (!cached) return;

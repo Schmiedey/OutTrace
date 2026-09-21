@@ -17,6 +17,7 @@ export const USAGE_EVENTS = [
   "export-locked-clicked",
   "checkout-started",
   "checkout-completed",
+  "billing-management-opened",
   "client-report-opened",
   "client-report-download-requested",
   "client-report-print-requested",

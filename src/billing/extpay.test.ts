@@ -22,6 +22,7 @@ import {
   BILLING_CACHE_KEY,
   BILLING_CACHE_MS,
   getBillingStatus,
+  openBillingManagement,
   openProCheckout,
   openProLogin,
   startBillingBackground,
@@ -119,9 +120,11 @@ describe("one-time ExtensionPay billing", () => {
 
     await openProCheckout();
     await openProLogin();
+    await openBillingManagement();
     expect(mocks.openPaymentPage).toHaveBeenCalledOnce();
-    expect(mocks.openLoginPage).toHaveBeenCalledOnce();
+    expect(mocks.openLoginPage).toHaveBeenCalledTimes(2);
     expect(mocks.noteUsage).toHaveBeenCalledWith("upgrade-opened");
+    expect(mocks.noteUsage).toHaveBeenCalledWith("billing-management-opened");
     expect(cache[BILLING_CACHE_KEY]).toMatchObject({ paid: true, checkedAt: 0 });
   });
 

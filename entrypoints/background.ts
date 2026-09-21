@@ -34,6 +34,7 @@ import { registrableDomain } from "@/src/lib/domain";
 import { toggleFollowDomain } from "@/src/storage/follows";
 import {
   getBillingStatus,
+  openBillingManagement,
   openProCheckout,
   openProLogin,
   startBillingBackground,
@@ -517,10 +518,15 @@ export default defineBackground(() => {
 
     if (
       message?.type === "OPEN_PRO_CHECKOUT" ||
-      message?.type === "OPEN_PRO_LOGIN"
+      message?.type === "OPEN_PRO_LOGIN" ||
+      message?.type === "OPEN_BILLING_MANAGEMENT"
     ) {
       const action =
-        message.type === "OPEN_PRO_CHECKOUT" ? openProCheckout : openProLogin;
+        message.type === "OPEN_PRO_CHECKOUT"
+          ? openProCheckout
+          : message.type === "OPEN_BILLING_MANAGEMENT"
+            ? openBillingManagement
+            : openProLogin;
       void action()
         .then(() => sendResponse({ ok: true }))
         .catch((error: unknown) =>
