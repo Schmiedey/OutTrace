@@ -9,6 +9,8 @@ Monitor website trackers and third-party services. Review changes and prepare cl
 ## Description
 Know what changed. Before your client asks.
 
+Featured on Product Hunt: https://www.producthunt.com/products/outtrace
+
 Formerly LinkScope. OutTrace helps freelancers, developers, and small agencies understand the outside services a website connects to—and review what changes after deployments, plugin updates, or tag changes.
 
 Start with one website you maintain:

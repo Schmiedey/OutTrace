@@ -16,6 +16,7 @@ import { parseCompleteBackup } from "@/src/storage/backupSchema";
 import { historyCleanupPaused, resumeHistoryCleanup } from "@/src/storage/retention";
 import { blockDomain } from "@/src/extension/block";
 import { usageStatus } from "@/src/telemetry/usage";
+import { ProductHuntBadge } from "@/src/components/ProductHuntBadge";
 import { QuietProtection } from "@/src/components/QuietProtection";
 import { newTabEnabled, notificationMode, setNewTabEnabled, setNotificationMode, type NotificationMode } from "@/src/storage/settings";
 import { useUpgradePrompt } from "@/src/components/UpgradePrompt";
@@ -324,6 +325,13 @@ export function SettingsPage() {
         {imported ? <p className="mt-3 text-[13px] text-lime">{imported}</p> : null}
         {importError ? <p className="mt-3 text-[13px] text-rose">{importError}</p> : null}
         {!billing.data?.paid ? <p className="mt-3 text-[12px] text-mute">Pro adds recurring monitoring and bulk exports. Complete local backups remain free.</p> : null}
+      </section>
+      <section className="mb-8" aria-label="Community">
+        <h2 className="text-[15px] font-medium">Community</h2>
+        <p className="mt-2 text-[14px] leading-relaxed text-mute">
+          OutTrace is on Product Hunt. Upvote or leave feedback if it helps your client workflow.
+        </p>
+        <ProductHuntBadge className="mt-4 inline-block" />
       </section>
       <section className="mb-8" aria-label="Support">
         <h2 className="text-[15px] font-medium">Support</h2>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Eye, FileText, ScanSearch } from "lucide-react";
+import { ProductHuntBadge } from "@/src/components/ProductHuntBadge";
 import { Button } from "@/src/components/ui/button";
 import { normalizeWatchedSiteUrl } from "@/src/storage/watchedSites";
 
@@ -123,7 +124,10 @@ export function WelcomePage() {
             Pro · $14.99 once
           </Link>
         </div>
-        <p className="mt-10 max-w-2xl text-[12px] leading-relaxed text-mute">
+        <div className="mt-10">
+          <ProductHuntBadge />
+        </div>
+        <p className="mt-6 max-w-2xl text-[12px] leading-relaxed text-mute">
           OutTrace reports observed connections. It does not certify legal
           compliance or website safety. Scan contents stay on this device;
           sharing and monitoring are your choice.

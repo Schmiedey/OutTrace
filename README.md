@@ -1,5 +1,7 @@
 # OutTrace
 
+[![OutTrace on Product Hunt](https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1256657&theme=light)](https://www.producthunt.com/products/outtrace)
+
 Local-first Chrome extension for people who maintain websites: inspect third-party connections, watch for changes after updates, and prepare client reports.
 
 Manual scans are unlimited on every plan. Opening OutTrace shows the latest saved capture first and never starts a scan by itself; use **Check this page** for an explicit capture. Optional **Quiet Protection** re-checks known sites after a 6-second dwell, with a 12-hour per-site cooldown, but never establishes a first-ever site baseline implicitly. It is off by default. **Watching** is separate: explicitly monitor a site when you visit, daily, or weekly. Scheduled checks briefly load a website in an inactive tab. OutTrace itself has no account and sends no scan data anywhere. ExtensionPay and Stripe handle only the payment email/card details and Pro verification.
@@ -97,6 +99,11 @@ The payment-success content script runs only on `https://extensionpay.com/*`; it
 No required host permissions. Pages are not injected at `document_start`.
 
 Permission audit: every declared permission above has a matching runtime feature. OutTrace does not request cookies, browsing history, identity, clipboard, or required host access.
+
+## Links
+
+- [Product Hunt](https://www.producthunt.com/products/outtrace)
+- [Chrome Web Store](https://chromewebstore.google.com/detail/outtrace/eedjncgcdepjbmpapihoigdbdfobmdmc)
 
 ## Development
 

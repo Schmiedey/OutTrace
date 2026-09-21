@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.3 — 2026-09-20
+
+- Added Product Hunt badges to the README, Welcome page, Settings, store listing copy, and promo images.
+
 ## 0.5.2 — 2026-09-20
 
 - Added a Manage billing button for Pro users that opens ExtensionPay for receipts, restore, and billing help.
