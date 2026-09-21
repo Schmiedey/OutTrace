@@ -1,10 +1,12 @@
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Eye, FileText, ScanSearch } from "lucide-react";
+import { ArrowRight, Eye, FileText, ScanSearch } from "lucide-react";
 import { ProductHuntBadge } from "@/src/components/ProductHuntBadge";
 import {
   OnboardingScreenshot,
   OnboardingStep,
 } from "@/src/components/welcome/OnboardingScreenshot";
+import { cn } from "@/src/lib/utils";
 
 const ONBOARDING = {
   pin: "/onboarding/pin-outtrace.png",
@@ -60,7 +62,8 @@ export function WelcomePage() {
                 <OnboardingScreenshot
                   src={ONBOARDING.pin}
                   alt="Chrome extensions menu with OutTrace pinned to the toolbar"
-                  aspect="720/520"
+                  aspect="880/520"
+                  objectPosition="right top"
                   badge="Pin"
                 />
               }
@@ -128,6 +131,7 @@ export function WelcomePage() {
             your client.
           </Outcome>
         </section>
+        <WelcomeDashboardCta />
         <div className="mt-8 flex flex-wrap justify-between gap-4 text-[13px]">
           <Link to="/audits/new" className="underline">
             Need a broader view? Audit a site
@@ -146,6 +150,44 @@ export function WelcomePage() {
         </p>
       </div>
     </main>
+  );
+}
+
+function WelcomeDashboardCta() {
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setVisible(entry.isIntersecting);
+      },
+      { rootMargin: "0px 0px -72px 0px", threshold: 0 },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <>
+      <div ref={sentinelRef} aria-hidden="true" className="h-px" />
+      <Link
+        to="/"
+        className={cn(
+          "fixed right-6 bottom-6 z-50 inline-flex h-11 items-center gap-2 rounded-md bg-ink px-4 text-[13px] font-medium text-canvas shadow-[0_12px_32px_rgba(23,23,23,0.18)] transition-[opacity,transform] duration-300 hover:bg-ink/90",
+          visible
+            ? "pointer-events-auto translate-y-0 opacity-100"
+            : "pointer-events-none translate-y-2 opacity-0",
+        )}
+      >
+        Go to dashboard
+        <ArrowRight className="h-4 w-4" aria-hidden="true" />
+      </Link>
+    </>
   );
 }
 

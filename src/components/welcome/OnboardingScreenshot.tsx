@@ -7,12 +7,14 @@ export function OnboardingScreenshot({
   aspect = "16/10",
   className,
   badge,
+  objectPosition = "left top",
 }: {
   src: string;
   alt: string;
   aspect?: string;
   className?: string;
   badge?: string;
+  objectPosition?: string;
 }) {
   return (
     <div
@@ -37,7 +39,8 @@ export function OnboardingScreenshot({
           <img
             src={src}
             alt={alt}
-            className="h-full w-full object-cover object-left-top"
+            className="h-full w-full object-cover"
+            style={{ objectPosition }}
             loading="eager"
             decoding="async"
           />
