@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1 — 2026-09-20
+
+- Fixed the global graph empty state when no sites have been checked yet.
+
 ## Unreleased
 
 - Added Chrome Web Store screenshots and promo tiles for OutTrace, showing check-this-page, unread portfolio changes, after-update diffs, and client reports.
