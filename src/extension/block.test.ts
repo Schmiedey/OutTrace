@@ -96,6 +96,21 @@ describe("domain blocking", () => {
     });
   });
 
+  it("copies a uBlock filter when host access is declined", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    vi.stubGlobal("browser", {
+      permissions: { request: vi.fn().mockResolvedValue(false) },
+      declarativeNetRequest: {
+        updateDynamicRules: vi.fn(),
+        getDynamicRules: vi.fn().mockResolvedValue([]),
+      },
+    });
+
+    await expect(blockDomain("tracker.example")).resolves.toBe("copied");
+    expect(writeText).toHaveBeenCalledWith("||tracker.example^");
+  });
+
   it("keeps the portable uBlock rule format", () => {
     expect(uBlockFilter("tracker.example")).toBe("||tracker.example^");
   });

@@ -283,4 +283,25 @@ describe("quiet local activity and notification policy", () => {
       ),
     ).toBeNull();
   });
+
+  it("keeps local activity when the optional notifications permission is missing", async () => {
+    vi.stubGlobal("browser", {
+      notifications: { create },
+      permissions: { contains: vi.fn().mockResolvedValue(false) },
+      alarms: { create: alarm },
+      runtime: { getURL: (path: string) => path },
+    });
+    await setNotificationMode("important");
+    await recordScanAlert(
+      scan(1),
+      scan(2),
+      graph(["doubleclick.net"]),
+      graph([]),
+      true,
+    );
+    await deliverPendingNotifications(now);
+    await maybeNotifyWeeklyDigest(now);
+    expect(await db.alerts.count()).toBe(1);
+    expect(create).not.toHaveBeenCalled();
+  });
 });
