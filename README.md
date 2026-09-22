@@ -95,7 +95,7 @@ The payment-success content script runs only on `https://extensionpay.com/*`; it
 - Optional browser capabilities — Right-click scan and visit navigation observation are requested only when you enable those controls; neither grants website access. The weekly digest is off until selected in Settings and stays quiet when no new trackers appear.
 - `https://extensionpay.com/*` — content script for Pro checkout and restore only; not used to scan websites
 
-No required host permissions beyond ExtensionPay checkout. Pages are not injected at `document_start` except on extensionpay.com after you open checkout.
+No required host permissions. OutTrace asks for extensionpay.com access only when you explicitly open checkout, restore, or billing management.
 
 Permission audit: every declared permission above has a matching runtime feature. OutTrace does not request cookies, browsing history, identity, clipboard, the `tabs` permission, or a new-tab override.
 

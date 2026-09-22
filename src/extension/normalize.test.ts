@@ -69,4 +69,20 @@ describe("normalizeScan dependency chains", () => {
       classificationConfidence: "high",
     });
   });
+
+  it("does not count passive hyperlink destinations as loaded third parties or trackers", () => {
+    const normalized = normalizeScan({
+      url: "https://example.com",
+      title: "Example",
+      hostname: "example.com",
+      findings: [
+        { type: "link", url: "https://doubleclick.net/about", snippet: "<a>" },
+        { type: "script", url: "https://cdnjs.cloudflare.com/app.js", snippet: "<script>" },
+      ],
+    });
+
+    expect(normalized.thirdPartyCount).toBe(1);
+    expect(normalized.trackerCount).toBe(0);
+    expect(normalized.snapshot.nodes.some((node) => node.domain === "doubleclick.net")).toBe(true);
+  });
 });

@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Eye, FileText, ScanSearch } from "lucide-react";
 import { ProductHuntBadge } from "@/src/components/ProductHuntBadge";
+import { Button } from "@/src/components/ui/button";
 import {
   OnboardingScreenshot,
   OnboardingStep,
 } from "@/src/components/welcome/OnboardingScreenshot";
 import { cn } from "@/src/lib/utils";
+import { normalizeWatchedSiteUrl } from "@/src/storage/watchedSites";
 
 const ONBOARDING = {
   pin: "/onboarding/pin-outtrace.png",
@@ -15,6 +17,27 @@ const ONBOARDING = {
 } as const;
 
 export function WelcomePage() {
+  const [url, setUrl] = useState("");
+  const [opened, setOpened] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const openFirstSite = async (): Promise<void> => {
+    setBusy(true);
+    setError(null);
+    try {
+      const target = normalizeWatchedSiteUrl(url);
+      await browser.tabs.create({ url: target.url });
+      setOpened(true);
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Could not open this website.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-canvas px-6 py-10 text-ink sm:px-10 sm:py-14">
       <div className="mx-auto max-w-6xl">
@@ -37,6 +60,65 @@ export function WelcomePage() {
           after updates. Turn the evidence into a clear client report—all in
           your browser.
         </p>
+
+        <section className="mt-9 max-w-2xl rounded-md border border-line bg-panel p-6">
+          <p className="text-[11px] tracking-[0.14em] text-mute uppercase">
+            Start here
+          </p>
+          <h2 className="font-display mt-2 text-2xl">
+            Map what one website connects to
+          </h2>
+          <p className="mt-2 text-[13px] leading-relaxed text-mute">
+            Your first check shows what is on the page now and creates the
+            baseline. A later check shows what changed.
+          </p>
+          <form
+            className="mt-5"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void openFirstSite();
+            }}
+          >
+            <label htmlFor="first-site" className="text-[12px] text-mute">
+              Website you maintain or want to inspect
+            </label>
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+              <input
+                id="first-site"
+                type="text"
+                inputMode="url"
+                value={url}
+                onChange={(event) => {
+                  setUrl(event.target.value);
+                  setOpened(false);
+                }}
+                placeholder="example.com"
+                autoComplete="url"
+                required
+                className="h-11 min-w-0 flex-1 rounded-md border border-line bg-canvas px-3 text-[14px] outline-none focus:border-ink"
+              />
+              <Button type="submit" disabled={!url.trim() || busy}>
+                {busy ? "Opening…" : "Open website"}
+                <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+              </Button>
+            </div>
+          </form>
+          {error ? (
+            <p role="alert" className="mt-3 text-[13px] text-rose">
+              {error}
+            </p>
+          ) : null}
+          {opened ? (
+            <p role="status" className="mt-4 text-[13px] text-ink">
+              Website opened. Click the OutTrace toolbar icon there, then choose
+              “Check this page.”
+            </p>
+          ) : null}
+          <p className="mt-4 text-[12px] text-mute">
+            Opening the site does not scan it. Manual checks are unlimited and
+            free, with no account required.
+          </p>
+        </section>
 
         <section className="mt-14" aria-labelledby="how-a-check-works">
           <p className="text-[11px] tracking-[0.16em] text-mute uppercase">

@@ -2,7 +2,7 @@
   "name": "outtrace",
   "description": "Local-first Chrome extension for people who maintain websites: inspect third-party connections, watch for changes, and prepare client reports.",
   "private": true,
-  "version": "0.5.4",
+  "version": "0.5.6",
   "type": "module",
   "scripts": {
     "dev": "wxt",
@@ -13,11 +13,14 @@
     "zip:firefox": "wxt zip -b firefox",
     "check:secrets": "node scripts/check-secrets.mjs",
     "check:classification-license": "node scripts/check-classification-license.mjs",
+    "check:install-trust": "node scripts/check-install-trust.mjs",
     "check:entitlements": "node scripts/check-entitlements.mjs",
     "test": "vitest run",
     "compile": "tsc --noEmit",
     "prebuild": "npm run compile && npm run check:secrets && npm run check:classification-license && npm run test",
+    "postbuild": "npm run check:install-trust -- --manifest .output/chrome-mv3/manifest.json",
     "prezip": "npm run compile && npm run check:secrets && npm run check:classification-license && npm run test",
+    "postzip": "npm run check:install-trust -- --manifest .output/chrome-mv3/manifest.json",
     "postinstall": "wxt prepare"
   },
   "dependencies": {

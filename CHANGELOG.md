@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 0.5.6 — Prepared 2026-09-22
+
+- Added a release guard that rejects install-time `tabs`, notifications, broad host access, unexpected content-script access, and New Tab overrides before packaging.
+- Restored a direct website-opening action to first-run onboarding so a new user can reach a useful first check without translating a walkthrough into steps on their own.
+- Removed the install-time ExtensionPay content script; payment-site access is now requested only when the user opens checkout, restore, or billing management.
+- Clarified the store audience and immediate value: the first check maps the current page, while later checks show changes; OutTrace is not a consumer ad blocker.
+- Aligned saved tracker and third-party totals with the resource-only score so ordinary hyperlink destinations no longer inflate summaries.
+- Made the first popup scan the primary action and removed the misleading refresh symbol before an initial check.
+
+## 0.5.5 — 2026-09-21
+
+- Published the permission and New Tab removal changes under a new Chrome Web Store version after 0.5.4 had already been released.
 - Replaced the welcome-page URL form with screenshot-quality onboarding visuals (pin → open the client site → Check this page).
 
 ## 0.5.4 — 2026-09-20

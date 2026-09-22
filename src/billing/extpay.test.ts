@@ -58,11 +58,7 @@ afterEach(() => {
 
 describe("one-time ExtensionPay billing", () => {
   it("starts the provider once and returns the checkout tab after payment", async () => {
-    let paidCallback: (() => void) | undefined;
     let updatedCallback: ((tabId: number, changeInfo: { url?: string }, tab: { url?: string }) => void) | undefined;
-    mocks.onPaid.mockImplementation((callback: () => void) => {
-      paidCallback = callback;
-    });
     const tabs = {
       query: vi.fn(async () => [{ id: 42, url: "https://extensionpay.com/extension/linkscope/choose-plan" }]),
       update: vi.fn(async () => undefined),
@@ -73,7 +69,7 @@ describe("one-time ExtensionPay billing", () => {
 
     expect(() => startBillingBackground()).not.toThrow();
     expect(mocks.startBackground).toHaveBeenCalledOnce();
-    expect(mocks.onPaid).toHaveBeenCalledOnce();
+    expect(mocks.onPaid).not.toHaveBeenCalled();
 
     mocks.getUser.mockResolvedValue({
       paid: true,
@@ -81,17 +77,6 @@ describe("one-time ExtensionPay billing", () => {
       plan: { unitAmountCents: 1499, currency: "usd", nickname: "pro", interval: "once", intervalCount: null },
     });
     await openProCheckout();
-    await paidCallback?.();
-    await vi.waitFor(() => {
-      expect(tabs.update).toHaveBeenCalledWith(42, {
-        url: "chrome-extension://test/app.html#/pro?billing=success",
-        active: true,
-      });
-    });
-
-    // If the hosted tab navigates through Stripe before the content script
-    // callback arrives, the tab-update fallback still returns the user to the
-    // app even when the original marker has already been cleared.
     await updatedCallback?.(99, {
       url: "https://extensionpay.com/extension/linkscope/paid",
     }, {

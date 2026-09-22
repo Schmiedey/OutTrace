@@ -146,9 +146,19 @@ export function normalizeScan(raw: RawScanPayload): NormalizedScan {
   });
 
   const edgeList = Array.from(edges.values()).sort((a, b) => a.id.localeCompare(b.id));
-  const thirdPartyCount = nodes.filter((node) => !node.isOrigin && !node.isFirstParty).length;
+  const resourceDomains = new Set(
+    edgeList.filter((edge) => edge.type !== "link").map((edge) => edge.target),
+  );
+  const thirdPartyCount = nodes.filter(
+    (node) =>
+      !node.isOrigin && !node.isFirstParty && resourceDomains.has(node.domain),
+  ).length;
   const trackerCount = nodes.filter(
-    (node) => !node.isOrigin && !node.isFirstParty && isTrackerCategory(node.category),
+    (node) =>
+      !node.isOrigin &&
+      !node.isFirstParty &&
+      resourceDomains.has(node.domain) &&
+      isTrackerCategory(node.category),
   ).length;
 
   return {

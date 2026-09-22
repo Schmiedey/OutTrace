@@ -461,12 +461,12 @@ export function PopupApp() {
             </Button>
           ) : null}
           <Button
-            variant="ghost"
+            variant={glance ? "ghost" : "primary"}
             className="w-full"
             disabled={checking || Boolean(blocked)}
             onClick={() => void gradePage()}
           >
-            ↻ {glance ? "Check again" : "Check this page"}
+            {glance ? "↻ Check again" : "Check this page"}
           </Button>
           {upgradeHint && billing.data?.paid === false ? (
             <p className="px-1 py-1 text-center text-[11px] leading-relaxed text-mute">

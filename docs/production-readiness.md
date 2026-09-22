@@ -39,8 +39,8 @@ Share-card URL stays `linkscope.dev` until a new domain is registered. Domain wo
 2. On an unpacked sandbox build: test checkout, payment-success return to the Pro page, restore-purchase, Pro feature unlocks, and ExtensionPay’s paid/unpaid test reset.
 3. Update the live Chrome Web Store listing **in place** (same extension ID `eedjncgcdepjbmpapihoigdbdfobmdmc`): new name, copy from `store/listing.md`, screenshots, and “formerly LinkScope” in the description for the first release or two.
 4. Update an existing installed build (old LinkScope name, real local data) to this build without uninstalling. Confirm scans, graphs, saved status, preferences, watching, following, audits, and dynamic blocks remain intact.
-5. Run one real end-to-end live purchase on the store-installed build before calling billing done. No real purchase has been performed yet.
+5. Run one real end-to-end live purchase on the store-installed build before calling billing done. Confirm the extensionpay.com permission appears only after the checkout action. No real purchase has been performed yet.
 6. Domain registration is deferred. Keep `SHARE_CARD_URL` as `linkscope.dev` until a new domain is actually registered and resolving.
 7. Restore a complete backup into a fresh profile; verify cancelled/damaged restores, inactive restored scanning, manual block permission approval, and unchanged billing access.
-8. Inspect the packaged payment content script: only `https://extensionpay.com/*`, at document start. Disclose this narrow billing permission in the store listing.
+8. Inspect the packaged manifest: there must be no payment content script or required host permission. Checkout, restore, and billing management must request only `https://extensionpay.com/*` from the initiating user action.
 9. Publish releases to the same store listing and keep database migration history intact.

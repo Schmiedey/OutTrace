@@ -280,16 +280,8 @@ export function startBillingBackground(): void {
     // A provider setup problem must not take down the scan worker.
     console.warn(error instanceof Error ? error.message : String(error));
   }
-  try {
-    // The content script is present on extensionpay.com at document_start, so
-    // successful hosted checkout pages can refresh the local entitlement.
-    extpay.onPaid.addListener(() => {
-      void handlePaidReturn().catch(() => undefined);
-    });
-  } catch (error) {
-    // Keep billing optional for browsers/builds that omit the callback hook.
-    console.warn(error instanceof Error ? error.message : String(error));
-  }
+  // Payment completion is detected by the provider-tab listener above. This
+  // avoids a required extensionpay.com content script and its install warning.
 }
 
 export async function getBillingStatus(force = false): Promise<BillingStatus> {
